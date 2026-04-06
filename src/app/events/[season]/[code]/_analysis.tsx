@@ -565,7 +565,6 @@ function PitchStrategySection({
 }: {
   myMetrics: TeamMetrics;
   approaches: CaptainApproach[];
-  maxOPR: number;
 }) {
   return (
     <section className="space-y-3">
