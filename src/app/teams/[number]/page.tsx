@@ -75,7 +75,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ num
       ) : (
         <div className="space-y-2">
           {events.map((ev) => (
-            <Link key={ev.code} href={`/events/${currentSeason}/${ev.code}`}
+            <Link key={ev.code} href={`/events/${currentSeason}/${ev.code}?team=${teamNum}`}
               className="flex items-center justify-between px-4 py-4 rounded-2xl glass glass-hover group"
               style={{ border: "1px solid var(--border)" }}>
               <div>

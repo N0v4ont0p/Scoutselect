@@ -5,9 +5,10 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Users, Zap, Target, TrendingUp, TrendingDown, Minus,
-  ChevronDown, AlertTriangle, CheckCircle, Shield, Star,
+  ChevronDown, AlertTriangle, CheckCircle, Shield, Star, Eye, Flame,
+  Activity, Trophy, Swords,
 } from "lucide-react";
-import type { FTCMatch, FTCRanking } from "@/lib/ftcscout";
+import type { FTCMatch, FTCRanking, PreviewTeam } from "@/lib/ftcscout";
 import {
   buildTeamMetrics, computeOPR, detectPhase, determineRole,
   optimizePicksWithDraft, rankCaptainsToApproach,
@@ -93,6 +94,10 @@ export default function EventAnalysisContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Preview data for upcoming events
+  const [previewTeams, setPreviewTeams] = useState<PreviewTeam[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   // ── Fetch data ─────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -117,6 +122,19 @@ export default function EventAnalysisContent() {
   }, [season, code]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Fetch preview data when event is upcoming and data is loaded
+  useEffect(() => {
+    if (loading) return;
+    const phase = manualPhase ?? detectPhase(matches.length, matches.filter(m => m.tournamentLevel === "Quals").length, matches.filter(m => m.tournamentLevel !== "Quals").length);
+    if (phase !== "upcoming") return;
+    setPreviewLoading(true);
+    fetch(`/api/event/${season}/${code}/preview`)
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setPreviewTeams(d); })
+      .catch(() => {})
+      .finally(() => setPreviewLoading(false));
+  }, [loading, matches, manualPhase, season, code]);
 
   // ── Derived analytics ──────────────────────────────────────────────────────
   const qualMatches = matches.filter((m) => m.tournamentLevel === "Quals");
@@ -328,6 +346,7 @@ export default function EventAnalysisContent() {
               picks={captainPicks}
               matchups={matchups}
               maxOPR={maxOPR}
+              season={season}
             />
           )}
 
@@ -359,6 +378,18 @@ export default function EventAnalysisContent() {
           maxOPR={maxOPR}
           highlightTeam={submittedTeam ?? undefined}
           captainNums={captainNums}
+          season={season}
+        />
+      )}
+
+      {/* Upcoming event preview — shown when no matches yet */}
+      {activePhase === "upcoming" && (
+        <UpcomingPreviewSection
+          teams={previewTeams}
+          loading={previewLoading}
+          myTeam={submittedTeam ?? undefined}
+          season={season}
+          eventName={eventName || code}
         />
       )}
     </div>
@@ -427,15 +458,17 @@ function RoleBanner({ role, phase }: { role: ReturnType<typeof determineRole>; t
 // ─── Alliance Builder (captain) ───────────────────────────────────────────────
 
 function AllianceBuilderSection({
-  myMetrics, picks, matchups, maxOPR,
+  myMetrics, picks, matchups, maxOPR, season,
 }: {
   myMetrics: TeamMetrics;
   picks: DraftAwarePickOption[];
   matchups: AllianceMatchup[];
   maxOPR: number;
+  season: number;
 }) {
   const top = picks[0];
   const backups = picks.slice(1);
+  const showEg = season <= 2023;
 
   return (
     <section className="space-y-3">
@@ -453,7 +486,7 @@ function AllianceBuilderSection({
         <MetricRow label="OPR" value={myMetrics.opr} max={maxOPR} />
         <MetricRow label="Auto avg" value={myMetrics.avgAuto} max={maxOPR / 2} />
         <MetricRow label="TeleOp avg" value={myMetrics.avgDc} max={maxOPR / 2} />
-        <MetricRow label="Endgame avg" value={myMetrics.avgEndgame} max={maxOPR / 3} />
+        {showEg && <MetricRow label="Endgame avg" value={myMetrics.avgEndgame} max={maxOPR / 3} />}
         <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
           <span>Reliability {myMetrics.reliability.toFixed(0)}/100</span>
           <span>·</span>
@@ -488,7 +521,7 @@ function AllianceBuilderSection({
           <MetricRow label="OPR" value={top.metrics.opr} max={maxOPR} />
           <MetricRow label="Auto" value={top.metrics.avgAuto} max={maxOPR / 2} />
           <MetricRow label="TeleOp" value={top.metrics.avgDc} max={maxOPR / 2} />
-          <MetricRow label="Endgame" value={top.metrics.avgEndgame} max={maxOPR / 3} />
+          {showEg && <MetricRow label="Endgame" value={top.metrics.avgEndgame} max={maxOPR / 3} />}
 
           {top.bestPick2 && (
             <div className="mt-3 pt-3 text-sm" style={{ borderTop: "1px solid var(--border)" }}>
@@ -726,16 +759,17 @@ function PlayoffSection({ matchups }: { matchups: AllianceMatchup[] }) {
 
 // ─── Field Overview ────────────────────────────────────────────────────────────
 
-type SortKey = "opr" | "auto" | "dc" | "endgame" | "reliability" | "consistency";
-
 function FieldOverviewSection({
-  metrics, maxOPR, highlightTeam, captainNums,
+  metrics, maxOPR, highlightTeam, captainNums, season,
 }: {
   metrics: TeamMetrics[];
   maxOPR: number;
   highlightTeam?: number;
   captainNums: Set<number>;
+  season: number;
 }) {
+  const showEg = season <= 2023;
+  type SortKey = "opr" | "auto" | "dc" | "endgame" | "reliability" | "consistency";
   const [sortKey, setSortKey] = useState<SortKey>("opr");
   const sorted = [...metrics].sort((a, b) => {
     const map: Record<SortKey, (m: TeamMetrics) => number> = {
@@ -748,7 +782,8 @@ function FieldOverviewSection({
 
   const cols: { key: SortKey; label: string }[] = [
     { key: "opr", label: "OPR" }, { key: "auto", label: "Auto" },
-    { key: "dc", label: "TeleOp" }, { key: "endgame", label: "EG" },
+    { key: "dc", label: "TeleOp" },
+    ...(showEg ? [{ key: "endgame" as SortKey, label: "EG" }] : []),
     { key: "reliability", label: "Rely" }, { key: "consistency", label: "Cons" },
   ];
 
@@ -819,7 +854,7 @@ function FieldOverviewSection({
                   <td className="px-3 py-2.5 text-right font-mono">{formatScore(m.opr)}</td>
                   <td className="px-3 py-2.5 text-right font-mono">{formatScore(m.avgAuto)}</td>
                   <td className="px-3 py-2.5 text-right font-mono">{formatScore(m.avgDc)}</td>
-                  <td className="px-3 py-2.5 text-right font-mono">{formatScore(m.avgEndgame)}</td>
+                  {showEg && <td className="px-3 py-2.5 text-right font-mono">{formatScore(m.avgEndgame)}</td>}
                   <td className="px-3 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <div className="w-12">
@@ -844,7 +879,332 @@ function FieldOverviewSection({
   );
 }
 
-// ─── Shared metric row ─────────────────────────────────────────────────────────
+// ─── Upcoming Event Preview ────────────────────────────────────────────────────
+
+type ThreatTier = "elite" | "strong" | "solid" | "unknown";
+
+function threatTier(team: PreviewTeam): ThreatTier {
+  if (team.matchesPlayed === 0) return "unknown";
+  if (team.winRate >= 0.7 || team.highScore >= 200) return "elite";
+  if (team.winRate >= 0.5 || team.highScore >= 140) return "strong";
+  return "solid";
+}
+
+const TIER_CONFIG: Record<ThreatTier, { label: string; color: string; bg: string; border: string; icon: string }> = {
+  elite:   { label: "🔥 Elite",   color: "#ef4444", bg: "rgba(239,68,68,0.10)",   border: "rgba(239,68,68,0.35)",   icon: "🔥" },
+  strong:  { label: "⚡ Strong",  color: "#f59e0b", bg: "rgba(245,158,11,0.10)",  border: "rgba(245,158,11,0.35)",  icon: "⚡" },
+  solid:   { label: "📊 Solid",   color: "#6366f1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.25)",  icon: "📊" },
+  unknown: { label: "❓ Unknown", color: "#64748b", bg: "var(--surface-2)",        border: "var(--border)",           icon: "❓" },
+};
+
+function UpcomingPreviewSection({
+  teams, loading, myTeam, season, eventName,
+}: {
+  teams: PreviewTeam[];
+  loading: boolean;
+  myTeam?: number;
+  season: number;
+  eventName: string;
+}) {
+  const [tab, setTab] = useState<"threats" | "table">("threats");
+
+  const sorted = [...teams].sort((a, b) => {
+    if (a.matchesPlayed === 0 && b.matchesPlayed === 0) return 0;
+    if (a.matchesPlayed === 0) return 1;
+    if (b.matchesPlayed === 0) return -1;
+    return b.winRate - a.winRate || b.highScore - a.highScore;
+  });
+
+  const elites = sorted.filter((t) => threatTier(t) === "elite");
+  const threats = sorted.filter((t) => t.teamNumber !== myTeam).slice(0, 6);
+  const myEntry = teams.find((t) => t.teamNumber === myTeam);
+  const myTier = myEntry ? threatTier(myEntry) : null;
+
+  const topScore = Math.max(...teams.map((t) => t.highScore), 1);
+
+  return (
+    <section className="space-y-4 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Eye className="w-5 h-5" style={{ color: "var(--accent)" }} />
+          Pre-Event Scout Report
+        </h2>
+        <span className="text-xs px-2 py-1 rounded-full font-semibold"
+          style={{ background: "rgba(99,102,241,0.12)", color: "var(--accent)", border: "1px solid rgba(99,102,241,0.25)" }}>
+          {seasonName(season)} · {teams.length} teams registered
+        </span>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--surface-2)" }}>
+        {([["threats", "🎯 Threats Radar"], ["table", "📊 Full Roster"]] as const).map(([key, label]) => (
+          <button key={key}
+            onClick={() => setTab(key)}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+            style={{
+              background: tab === key ? "var(--accent)" : "transparent",
+              color: tab === key ? "#fff" : "var(--text-muted)",
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="shimmer rounded-xl" style={{ height: 72 }} />
+          ))}
+        </div>
+      ) : teams.length === 0 ? (
+        <div className="glass rounded-2xl p-8 text-center" style={{ border: "1px solid var(--border)" }}>
+          <Activity className="w-8 h-8 mx-auto mb-3 opacity-20" />
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            No registered teams found yet — check back closer to the event date.
+          </p>
+        </div>
+      ) : tab === "threats" ? (
+        <div className="space-y-4">
+          {/* Summary stats row */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Registered Teams", value: teams.length, icon: <Users className="w-4 h-4" /> },
+              { label: "Top Season Score", value: topScore > 0 ? topScore : "—", icon: <Trophy className="w-4 h-4" /> },
+              { label: "Elite Threats", value: elites.length, icon: <Flame className="w-4 h-4" /> },
+            ].map((s) => (
+              <div key={s.label} className="glass rounded-xl p-3 text-center" style={{ border: "1px solid var(--border)" }}>
+                <div className="flex justify-center mb-1" style={{ color: "var(--accent)" }}>{s.icon}</div>
+                <div className="font-black text-lg">{s.value}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Your team banner */}
+          {myEntry && myTier && (
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+              style={{ background: TIER_CONFIG[myTier].bg, border: `1px solid ${TIER_CONFIG[myTier].border}` }}>
+              <div>
+                <div className="text-xs font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>Your Team</div>
+                <div className="font-black text-base" style={{ color: TIER_CONFIG[myTier].color }}>
+                  #{myEntry.teamNumber} · {myEntry.name}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs px-2 py-0.5 rounded-full font-bold"
+                  style={{ background: TIER_CONFIG[myTier].bg, color: TIER_CONFIG[myTier].color, border: `1px solid ${TIER_CONFIG[myTier].border}` }}>
+                  {TIER_CONFIG[myTier].label}
+                </div>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                  {myEntry.matchesPlayed > 0 ? `${myEntry.wins}W-${myEntry.losses}L · ${(myEntry.winRate * 100).toFixed(0)}% win rate` : "No season data yet"}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Key threats */}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5"
+              style={{ color: "var(--text-muted)" }}>
+              <Swords className="w-3.5 h-3.5" /> Teams to Watch Out For
+            </p>
+            <div className="space-y-2.5">
+              {threats.map((team, i) => {
+                const tier = threatTier(team);
+                const cfg = TIER_CONFIG[tier];
+                const winPct = team.matchesPlayed > 0 ? (team.winRate * 100).toFixed(0) : null;
+                return (
+                  <div key={team.teamNumber}
+                    className="glass rounded-xl px-4 py-3 flex items-center gap-4"
+                    style={{ border: `1px solid ${cfg.border}` }}>
+                    {/* Rank badge */}
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+                      style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+                      {i + 1}
+                    </div>
+                    {/* Team info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Link href={`/teams/${team.teamNumber}`}
+                          className="font-black text-sm hover:underline"
+                          style={{ color: cfg.color }}>
+                          #{team.teamNumber}
+                        </Link>
+                        <span className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{team.name}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0"
+                          style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                      </div>
+                      {team.matchesPlayed > 0 ? (
+                        <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                          <span>{team.wins}W-{team.losses}L{team.ties > 0 ? `-${team.ties}T` : ""}</span>
+                          <span>·</span>
+                          <span className="font-semibold" style={{ color: winPct && parseInt(winPct) >= 60 ? "var(--success)" : "var(--text-muted)" }}>
+                            {winPct}% win rate
+                          </span>
+                          {team.highScore > 0 && <>
+                            <span>·</span>
+                            <span>Peak: <span className="font-mono font-bold text-white">{team.highScore}</span></span>
+                          </>}
+                          {team.eventsPlayed > 0 && <>
+                            <span>·</span>
+                            <span>{team.eventsPlayed} event{team.eventsPlayed > 1 ? "s" : ""}</span>
+                          </>}
+                        </div>
+                      ) : (
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>No season data yet — fresh team or first event</span>
+                      )}
+                    </div>
+                    {/* Win rate bar */}
+                    {team.matchesPlayed > 0 && (
+                      <div className="w-24 shrink-0">
+                        <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
+                          <span>Win%</span>
+                          <span className="font-mono">{winPct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                          <div className="h-1.5 rounded-full transition-all duration-700"
+                            style={{ width: `${team.winRate * 100}%`, background: cfg.color }} />
+                        </div>
+                        {team.highScore > 0 && (
+                          <>
+                            <div className="flex justify-between text-[10px] mt-1.5 mb-0.5" style={{ color: "var(--text-muted)" }}>
+                              <span>Peak</span>
+                              <span className="font-mono">{team.highScore}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                              <div className="h-1.5 rounded-full transition-all duration-700"
+                                style={{ width: `${(team.highScore / topScore) * 100}%`, background: "var(--accent-2)" }} />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Insights card */}
+          {elites.length > 0 && (
+            <div className="rounded-xl px-4 py-3 space-y-1.5"
+              style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}>
+              <p className="text-xs font-bold" style={{ color: "#ef4444" }}>⚠ Scouting Alerts</p>
+              {elites.slice(0, 3).map((t) => (
+                <p key={t.teamNumber} className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span className="font-semibold text-white">#{t.teamNumber}</span> — {t.wins}W/{t.losses}L this season
+                  {t.highScore > 0 ? `, peaked at ${t.highScore} pts` : ""}.
+                  {" "}Approach with a high-efficiency alliance strategy.
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Win distribution bar chart */}
+          {teams.filter((t) => t.matchesPlayed > 0).length > 0 && (
+            <div className="glass rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+                Season Performance Distribution
+              </p>
+              <div className="space-y-2">
+                {(["elite", "strong", "solid", "unknown"] as ThreatTier[]).map((tier) => {
+                  const count = teams.filter((t) => threatTier(t) === tier).length;
+                  const pct = (count / Math.max(teams.length, 1)) * 100;
+                  const cfg = TIER_CONFIG[tier];
+                  return (
+                    <div key={tier}>
+                      <div className="flex justify-between text-xs mb-0.5">
+                        <span style={{ color: cfg.color }}>{cfg.label}</span>
+                        <span style={{ color: "var(--text-muted)" }}>{count} team{count !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                        <div className="h-2 rounded-full transition-all duration-700"
+                          style={{ width: `${pct}%`, background: cfg.color }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Full roster table */
+        <div className="glass rounded-xl overflow-x-auto" style={{ border: "1px solid var(--border)" }}>
+          <table className="w-full text-xs min-w-[540px]">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-muted)" }}>
+                <th className="text-left px-3 py-2.5 w-8">#</th>
+                <th className="text-left px-3 py-2.5">Team</th>
+                <th className="text-right px-3 py-2.5">Tier</th>
+                <th className="text-right px-3 py-2.5">W-L</th>
+                <th className="text-right px-3 py-2.5">Win%</th>
+                <th className="text-right px-3 py-2.5">Peak</th>
+                <th className="text-right px-3 py-2.5">Events</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((team, i) => {
+                const tier = threatTier(team);
+                const cfg = TIER_CONFIG[tier];
+                const isMe = team.teamNumber === myTeam;
+                return (
+                  <tr key={team.teamNumber}
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      background: isMe ? "rgba(99,102,241,0.08)" : undefined,
+                    }}
+                    className="hover:bg-white/3 transition-colors">
+                    <td className="px-3 py-2.5 font-mono" style={{ color: "var(--text-muted)" }}>{i + 1}</td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <Link href={`/teams/${team.teamNumber}`}
+                          className="font-bold hover:underline"
+                          style={{ color: isMe ? "var(--accent)" : "var(--text)" }}>
+                          {team.teamNumber}
+                        </Link>
+                        <span className="hidden sm:block text-[10px] truncate max-w-[120px]" style={{ color: "var(--text-muted)" }}>{team.name}</span>
+                        {isMe && <span className="text-[10px]" style={{ color: "var(--accent)" }}>◀ you</span>}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: cfg.bg, color: cfg.color }}>{cfg.icon}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono">
+                      {team.matchesPlayed > 0 ? `${team.wins}-${team.losses}` : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono">
+                      {team.matchesPlayed > 0 ? (
+                        <span style={{ color: team.winRate >= 0.6 ? "var(--success)" : team.winRate >= 0.4 ? "var(--warning)" : "var(--danger)" }}>
+                          {(team.winRate * 100).toFixed(0)}%
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono">
+                      {team.highScore > 0 ? team.highScore : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono" style={{ color: "var(--text-muted)" }}>
+                      {team.eventsPlayed > 0 ? team.eventsPlayed : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Disclaimer */}
+      <p className="text-[10px] text-center" style={{ color: "var(--text-muted)" }}>
+        ⚡ Stats from completed events this season — preview only. Live analysis available once matches begin.
+      </p>
+    </section>
+  );
+}
+
+
 
 function MetricRow({ label, value, max }: { label: string; value: number; max: number }) {
   return (
