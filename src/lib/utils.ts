@@ -10,7 +10,7 @@ export function seasonName(season: number): string {
     2022: "Power Play (2022–23)",
     2023: "Centerstage (2023–24)",
     2024: "Into the Deep (2024–25)",
-    2025: "High Stakes (2025–26)",
+    2025: "Decoded (2025–26)",
   };
   return names[season] ?? `Season ${season}`;
 }

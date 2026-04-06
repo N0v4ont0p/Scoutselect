@@ -17,18 +17,22 @@ function TeamsContent() {
   const router = useRouter();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [results, setResults] = useState<TeamResult[]>([]);
+  const [searchError, setSearchError] = useState("");
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) { setResults([]); return; }
+    if (!query.trim()) { setResults([]); setSearchError(""); return; }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
+      setSearchError("");
       try {
         const res = await fetch(`/api/search/teams?q=${encodeURIComponent(query)}`);
-        setResults(await res.json());
-      } catch { setResults([]); }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        setResults(Array.isArray(data) ? data : []);
+      } catch (e) { setResults([]); setSearchError(String(e)); }
       setLoading(false);
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
@@ -52,7 +56,10 @@ function TeamsContent() {
         />
         {loading && <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />}
       </div>
-      {results.length > 0 && (
+      {searchError && (
+        <p className="text-center py-8 text-sm" style={{ color: "var(--danger)" }}>Search error — please try again</p>
+      )}
+      {!searchError && results.length > 0 && (
         <div className="space-y-2">
           {results.map((t) => (
             <Link key={t.teamNumber} href={`/teams/${t.teamNumber}`}
@@ -61,12 +68,12 @@ function TeamsContent() {
                 <span className="font-bold">{t.teamNumber}</span>
                 <span className="ml-3 text-sm" style={{ color: "var(--text-muted)" }}>{t.nameShort}</span>
               </div>
-              <span className="text-sm" style={{ color: "var(--text-muted)" }}>{t.city}, {t.stateProv} · {t.country}</span>
+              <span className="text-sm hidden sm:block" style={{ color: "var(--text-muted)" }}>{t.city}, {t.stateProv} · {t.country}</span>
             </Link>
           ))}
         </div>
       )}
-      {!loading && query && results.length === 0 && (
+      {!loading && !searchError && query && results.length === 0 && (
         <p className="text-center py-8" style={{ color: "var(--text-muted)" }}>No teams found for &quot;{query}&quot;</p>
       )}
     </div>
