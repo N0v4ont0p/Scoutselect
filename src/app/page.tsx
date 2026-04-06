@@ -2,10 +2,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, Zap, BarChart2, Target, Users, TrendingUp } from "lucide-react";
+import { Search, Zap, BarChart2, Target, Users, TrendingUp, Menu, X } from "lucide-react";
 import { seasonName } from "@/lib/utils";
 
 const SEASONS = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
+const NAV_LINKS = [
+  { href: "/teams", label: "Teams" },
+  { href: "/events", label: "Events" },
+  { href: "/seasons", label: "Seasons" },
+  { href: "/compare", label: "Compare" },
+];
 
 interface TeamResult {
   teamNumber: number;
@@ -18,21 +24,25 @@ interface TeamResult {
 export default function Home() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TeamResult[]>([]);
+  const [searchError, setSearchError] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) { setResults([]); setOpen(false); return; }
+    if (!query.trim()) { setResults([]); setSearchError(""); setOpen(false); return; }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
+      setSearchError("");
       try {
         const res = await fetch(`/api/search/teams?q=${encodeURIComponent(query)}`);
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
         setResults(Array.isArray(data) ? data : []);
         setOpen(true);
-      } catch { setResults([]); }
+      } catch (e) { setResults([]); setSearchError(String(e)); setOpen(true); }
       setLoading(false);
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
@@ -53,13 +63,29 @@ export default function Home() {
       <nav className="glass sticky top-0 z-50 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <span className="font-bold text-lg gradient-text">⚡ ScoutSelect</span>
+          {/* Desktop nav */}
           <div className="hidden sm:flex gap-6 text-sm" style={{ color: "var(--text-muted)" }}>
-            <Link href="/teams" className="hover:text-white transition-colors">Teams</Link>
-            <Link href="/events" className="hover:text-white transition-colors">Events</Link>
-            <Link href="/seasons" className="hover:text-white transition-colors">Seasons</Link>
-            <Link href="/compare" className="hover:text-white transition-colors">Compare</Link>
+            {NAV_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="hover:text-white transition-colors">{l.label}</Link>
+            ))}
           </div>
+          {/* Mobile hamburger */}
+          <button
+            className="sm:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
+            style={{ color: "var(--text-muted)" }}
+            onClick={() => setMobileNavOpen((v) => !v)}
+            aria-label="Toggle menu">
+            {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
+        {/* Mobile nav dropdown */}
+        {mobileNavOpen && (
+          <div className="sm:hidden border-t px-4 py-3 flex flex-col gap-3 text-sm" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+            {NAV_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="hover:text-white transition-colors py-1" onClick={() => setMobileNavOpen(false)}>{l.label}</Link>
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
@@ -88,19 +114,22 @@ export default function Home() {
             />
             {loading && <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />}
           </div>
-          {open && results.length > 0 && (
+          {open && (results.length > 0 || searchError) && (
             <div className="absolute top-full mt-1 w-full rounded-xl glass z-50 py-1 shadow-xl">
-              {results.map((t) => (
-                <Link key={t.teamNumber} href={`/teams/${t.teamNumber}`}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
-                  onClick={() => setOpen(false)}>
-                  <div>
-                    <span className="font-semibold text-sm">{t.teamNumber}</span>
-                    <span className="ml-2 text-sm" style={{ color: "var(--text-muted)" }}>{t.nameShort}</span>
-                  </div>
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{t.city}, {t.stateProv}</span>
-                </Link>
-              ))}
+              {searchError
+                ? <p className="px-4 py-3 text-sm" style={{ color: "var(--danger)" }}>Search error — please try again</p>
+                : results.map((t) => (
+                  <Link key={t.teamNumber} href={`/teams/${t.teamNumber}`}
+                    className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
+                    onClick={() => setOpen(false)}>
+                    <div>
+                      <span className="font-semibold text-sm">{t.teamNumber}</span>
+                      <span className="ml-2 text-sm" style={{ color: "var(--text-muted)" }}>{t.nameShort}</span>
+                    </div>
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>{t.city}, {t.stateProv}</span>
+                  </Link>
+                ))
+              }
             </div>
           )}
         </div>

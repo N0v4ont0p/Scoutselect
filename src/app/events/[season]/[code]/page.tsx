@@ -71,7 +71,7 @@ export default async function EventDashboardPage({
       {error && <p style={{ color: "var(--danger)" }} className="mb-4">{error}</p>}
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 mb-8">
         {[
           { label: "Teams", value: allTeams.length },
           { label: "Qual Matches", value: qualMatches.length },
@@ -87,8 +87,8 @@ export default async function EventDashboardPage({
       {/* Rankings */}
       <section className="mb-8">
         <h2 className="text-xl font-bold mb-3">Rankings</h2>
-        <div className="glass rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="glass rounded-xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[480px]">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-muted)" }}>
                 <th className="text-left px-4 py-3">Rank</th>

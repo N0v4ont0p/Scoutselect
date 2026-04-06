@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, ArrowLeft } from "lucide-react";
+import { seasonName } from "@/lib/utils";
 
 const SEASONS = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
@@ -33,7 +35,7 @@ export default function EventsPage() {
             value={season}
             onChange={(e) => setSeason(Number(e.target.value))}>
             {SEASONS.slice().reverse().map((s) => (
-              <option key={s} value={s}>{s}–{s + 1}</option>
+              <option key={s} value={s}>{seasonName(s)}</option>
             ))}
           </select>
         </div>

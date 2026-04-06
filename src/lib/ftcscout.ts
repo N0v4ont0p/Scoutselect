@@ -1,12 +1,4 @@
 const GRAPHQL_ENDPOINT = "https://api.ftcscout.org/graphql";
-const REST_BASE = "https://api.ftcscout.org/rest/v1";
-
-// ---------- REST helpers ----------
-async function restGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${REST_BASE}${path}`, { next: { revalidate: 0 } });
-  if (!res.ok) throw new Error(`FTCScout REST ${res.status}: ${path}`);
-  return res.json() as Promise<T>;
-}
 
 // ---------- GraphQL helper ----------
 async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
@@ -74,42 +66,175 @@ export interface FTCRanking {
 }
 
 // ---------- Season score fragment ----------
+// Returns the correct inline fragment(s) for match scores based on the season.
+// GraphQL type names: MatchScores2019, MatchScores2020Trad, MatchScores2020Remote,
+//   MatchScores2021Trad, MatchScores2021Remote, MatchScores2022, MatchScores2023,
+//   MatchScores2024, MatchScores2025 (each with red/blue nested alliance objects).
+// 2019-2023 have egPoints; 2024+ have no endgame phase.
 function scoreFragment(season: number): string {
-  if (season <= 2023) {
+  const hasEg = season <= 2023;
+  const egField = hasEg ? " egPoints" : "";
+
+  if (season === 2020) {
     return `
       scores {
-        ... on MatchScores${season}Traditional {
-          red { totalPoints autoPoints dcPoints egPoints }
-          blue { totalPoints autoPoints dcPoints egPoints }
+        ... on MatchScores2020Trad {
+          red { totalPoints autoPoints dcPoints${egField} }
+          blue { totalPoints autoPoints dcPoints${egField} }
         }
-        ... on MatchScores${season}Remote {
-          team { totalPoints autoPoints dcPoints egPoints }
+        ... on MatchScores2020Remote {
+          totalPoints autoPoints dcPoints${egField}
         }
       }`;
   }
+  if (season === 2021) {
+    return `
+      scores {
+        ... on MatchScores2021Trad {
+          red { totalPoints autoPoints dcPoints${egField} }
+          blue { totalPoints autoPoints dcPoints${egField} }
+        }
+        ... on MatchScores2021Remote {
+          totalPoints autoPoints dcPoints${egField}
+        }
+      }`;
+  }
+  // 2019, 2022, 2023, 2024, 2025 — single wrapper type with red/blue
   return `
     scores {
-      ... on MatchScores${season}Traditional {
-        red { totalPoints autoPoints dcPoints endgamePoints }
-        blue { totalPoints autoPoints dcPoints endgamePoints }
-      }
-      ... on MatchScores${season}Remote {
-        team { totalPoints autoPoints dcPoints endgamePoints }
+      ... on MatchScores${season} {
+        red { totalPoints autoPoints dcPoints${egField} }
+        blue { totalPoints autoPoints dcPoints${egField} }
       }
     }`;
 }
 
+// ---------- Rankings stats fragment ----------
+// Returns inline fragments for TeamEventStats union (per-season types).
+function statsFragment(season: number): string {
+  const body = "rank wins losses ties rp tb1 qualMatchesPlayed max { totalPoints }";
+  if (season === 2020) {
+    return `... on TeamEventStats2020Trad { ${body} }\n... on TeamEventStats2020Remote { ${body} }`;
+  }
+  if (season === 2021) {
+    return `... on TeamEventStats2021Trad { ${body} }\n... on TeamEventStats2021Remote { ${body} }`;
+  }
+  return `... on TeamEventStats${season} { ${body} }`;
+}
+
 // ---------- API functions ----------
 export async function searchTeams(query: string): Promise<FTCTeam[]> {
-  return restGet<FTCTeam[]>(`/teams?search=${encodeURIComponent(query)}&limit=10`);
+  const q = `
+    query TeamsSearch($searchText: String, $limit: Int) {
+      teamsSearch(searchText: $searchText, limit: $limit) {
+        number
+        name
+        schoolName
+        location { city state country }
+      }
+    }`;
+  interface SearchResult {
+    teamsSearch: {
+      number: number;
+      name: string;
+      schoolName: string;
+      location: { city: string; state: string; country: string };
+    }[];
+  }
+  const data = await gql<SearchResult>(q, { searchText: query, limit: 10 });
+  return (data.teamsSearch ?? []).map((t) => ({
+    teamNumber: t.number,
+    nameShort: t.name,
+    nameFull: t.name,
+    schoolName: t.schoolName,
+    city: t.location.city,
+    stateProv: t.location.state,
+    country: t.location.country,
+  }));
 }
 
 export async function getTeam(number: number): Promise<FTCTeam> {
-  return restGet<FTCTeam>(`/teams/${number}`);
+  const q = `
+    query GetTeam($number: Int!) {
+      teamByNumber(number: $number) {
+        number
+        name
+        schoolName
+        location { city state country }
+      }
+    }`;
+  interface TeamResult {
+    teamByNumber: {
+      number: number;
+      name: string;
+      schoolName: string;
+      location: { city: string; state: string; country: string };
+    } | null;
+  }
+  const data = await gql<TeamResult>(q, { number });
+  const t = data.teamByNumber;
+  if (!t) throw new Error(`Team ${number} not found`);
+  return {
+    teamNumber: t.number,
+    nameShort: t.name,
+    nameFull: t.name,
+    schoolName: t.schoolName,
+    city: t.location.city,
+    stateProv: t.location.state,
+    country: t.location.country,
+  };
 }
 
 export async function getTeamEvents(number: number, season: number): Promise<FTCEvent[]> {
-  return restGet<FTCEvent[]>(`/teams/${number}/events?season=${season}`);
+  const q = `
+    query GetTeamEvents($number: Int!, $season: Int!) {
+      teamByNumber(number: $number) {
+        events(season: $season) {
+          event {
+            season
+            code
+            name
+            type
+            location { city state country }
+            start
+            end
+            ongoing
+            finished
+          }
+        }
+      }
+    }`;
+  interface TeamEventsResult {
+    teamByNumber: {
+      events: {
+        event: {
+          season: number;
+          code: string;
+          name: string;
+          type: string;
+          location: { city: string; state: string; country: string };
+          start: string;
+          end: string;
+          ongoing: boolean;
+          finished: boolean;
+        };
+      }[];
+    } | null;
+  }
+  const data = await gql<TeamEventsResult>(q, { number, season });
+  return (data.teamByNumber?.events ?? []).map((e) => ({
+    season: e.event.season,
+    code: e.event.code,
+    name: e.event.name,
+    type: e.event.type,
+    city: e.event.location.city,
+    stateProv: e.event.location.state,
+    country: e.event.location.country,
+    start: e.event.start,
+    end: e.event.end,
+    ongoing: e.event.ongoing,
+    finished: e.event.finished,
+  }));
 }
 
 export async function getSeasons(): Promise<number[]> {
@@ -117,7 +242,49 @@ export async function getSeasons(): Promise<number[]> {
 }
 
 export async function getEvent(season: number, code: string): Promise<FTCEvent> {
-  return restGet<FTCEvent>(`/events/${season}/${code}`);
+  const q = `
+    query GetEvent($season: Int!, $code: String!) {
+      eventByCode(season: $season, code: $code) {
+        season
+        code
+        name
+        type
+        location { city state country }
+        start
+        end
+        ongoing
+        finished
+      }
+    }`;
+  interface EventResult {
+    eventByCode: {
+      season: number;
+      code: string;
+      name: string;
+      type: string;
+      location: { city: string; state: string; country: string };
+      start: string;
+      end: string;
+      ongoing: boolean;
+      finished: boolean;
+    } | null;
+  }
+  const data = await gql<EventResult>(q, { season, code });
+  const ev = data.eventByCode;
+  if (!ev) throw new Error(`Event ${season}/${code} not found`);
+  return {
+    season: ev.season,
+    code: ev.code,
+    name: ev.name,
+    type: ev.type,
+    city: ev.location.city,
+    stateProv: ev.location.state,
+    country: ev.location.country,
+    start: ev.start,
+    end: ev.end,
+    ongoing: ev.ongoing,
+    finished: ev.finished,
+  };
 }
 
 interface MatchesQueryResult {
@@ -154,10 +321,11 @@ export async function getEventMatches(season: number, code: string): Promise<FTC
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sc = m.scores as any;
-    const red = sc?.red ?? sc?.team ?? {};
+    // Remote matches (2020/2021) are flat objects without red/blue wrappers
+    const red = sc?.red ?? {};
     const blue = sc?.blue ?? {};
 
-    const egKey = season <= 2023 ? "egPoints" : "endgamePoints";
+    const egKey = season <= 2023 ? "egPoints" : null;
 
     return {
       matchNum: m.matchNum,
@@ -170,14 +338,14 @@ export async function getEventMatches(season: number, code: string): Promise<FTC
       totalPoints: (red.totalPoints ?? 0) + (blue.totalPoints ?? 0),
       autoPoints: (red.autoPoints ?? 0) + (blue.autoPoints ?? 0),
       dcPoints: (red.dcPoints ?? 0) + (blue.dcPoints ?? 0),
-      endgamePoints: (red[egKey] ?? 0) + (blue[egKey] ?? 0),
+      endgamePoints: egKey ? (red[egKey] ?? 0) + (blue[egKey] ?? 0) : 0,
     };
   });
 }
 
 interface TeamsQueryResult {
   eventByCode: {
-    teams: { teamNumber: number; hasStats: boolean }[];
+    teams: { teamNumber: number }[];
   };
 }
 
@@ -185,7 +353,7 @@ export async function getEventTeams(season: number, code: string): Promise<numbe
   const q = `
     query EventTeams($season: Int!, $code: String!) {
       eventByCode(season: $season, code: $code) {
-        teams { teamNumber hasStats }
+        teams { teamNumber }
       }
     }`;
   const data = await gql<TeamsQueryResult>(q, { season, code });
@@ -202,22 +370,23 @@ interface RankingsQueryResult {
         losses: number;
         ties: number;
         rp: number;
-        tbp: number;
-        highScore: number;
-        matchesPlayed: number;
+        tb1: number;
+        qualMatchesPlayed: number;
+        max: { totalPoints: number };
       } | null;
     }[];
   };
 }
 
 export async function getEventRankings(season: number, code: string): Promise<FTCRanking[]> {
+  const fragment = statsFragment(season);
   const q = `
     query EventRankings($season: Int!, $code: String!) {
       eventByCode(season: $season, code: $code) {
         teams {
           teamNumber
           stats {
-            rank wins losses ties rp tbp highScore matchesPlayed
+            ${fragment}
           }
         }
       }
@@ -225,6 +394,16 @@ export async function getEventRankings(season: number, code: string): Promise<FT
   const data = await gql<RankingsQueryResult>(q, { season, code });
   return (data.eventByCode?.teams ?? [])
     .filter((t) => t.stats)
-    .map((t) => ({ teamNumber: t.teamNumber, ...t.stats! }))
+    .map((t) => ({
+      teamNumber: t.teamNumber,
+      rank: t.stats!.rank,
+      wins: t.stats!.wins,
+      losses: t.stats!.losses,
+      ties: t.stats!.ties,
+      rp: t.stats!.rp,
+      tbp: t.stats!.tb1,
+      highScore: t.stats!.max?.totalPoints ?? 0,
+      matchesPlayed: t.stats!.qualMatchesPlayed,
+    }))
     .sort((a, b) => a.rank - b.rank);
 }
