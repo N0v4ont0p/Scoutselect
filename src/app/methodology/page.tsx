@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Home, Globe } from "lucide-react";
+import { Home } from "lucide-react";
 import { useI18n } from "@/context/LanguageContext";
 
 interface Section {
@@ -337,23 +337,17 @@ const TAG_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 export default function MethodologyPage() {
-  const { t, lang, toggle } = useI18n();
+  const { t, lang } = useI18n();
   const sections = lang === "zh" ? SECTIONS_ZH : SECTIONS_EN;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <Link href="/"
-          className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all"
-          style={{ color: "var(--text-muted)" }}>
-          <Home className="w-4 h-4" />
-          {t.methodology.back}
-        </Link>
-        <button onClick={toggle} className="lang-btn flex items-center gap-1.5">
-          <Globe className="w-3 h-3" />
-          {t.nav.toggleLang}
-        </button>
-      </div>
+      <Link href="/"
+        className="inline-flex items-center gap-2 text-sm mb-6 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all"
+        style={{ color: "var(--text-muted)" }}>
+        <Home className="w-4 h-4" />
+        {t.methodology.back}
+      </Link>
 
       <h1 className="text-3xl font-black mb-2 animate-slide-up">{t.methodology.title}</h1>
       <p className="text-sm mb-8 animate-slide-up stagger-1" style={{ color: "var(--text-muted)" }}>

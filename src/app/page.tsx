@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, Zap, BarChart2, Target, Users, TrendingUp, Menu, X, Globe } from "lucide-react";
+import { Search, Zap, BarChart2, Target, Users, TrendingUp } from "lucide-react";
 import { seasonName } from "@/lib/utils";
 import { useI18n } from "@/context/LanguageContext";
 
@@ -17,25 +17,16 @@ interface TeamResult {
 }
 
 export default function Home() {
-  const { t, toggle } = useI18n();
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TeamResult[]>([]);
   const [searchError, setSearchError] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
-
-  const NAV_LINKS = [
-    { href: "/teams", label: t.nav.teams },
-    { href: "/events", label: t.nav.events },
-    { href: "/seasons", label: t.nav.seasons },
-    { href: "/compare", label: t.nav.compare },
-    { href: "/methodology", label: t.nav.methodology },
-  ];
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -66,62 +57,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
-      {/* ── Nav ── */}
-      <nav className="glass sticky top-0 z-50 border-b animate-slide-down" style={{ borderColor: "var(--border)" }}>
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="font-black text-lg gradient-text tracking-tight select-none">
-            {t.nav.brand}
-          </Link>
-          {/* Desktop nav */}
-          <div className="hidden sm:flex items-center gap-6 text-sm" style={{ color: "var(--text-muted)" }}>
-            {NAV_LINKS.map((l) => (
-              <Link key={l.href} href={l.href}
-                className="hover:text-white transition-colors duration-200 relative group">
-                {l.label}
-                <span className="absolute -bottom-0.5 left-0 w-0 h-px group-hover:w-full transition-all duration-300"
-                  style={{ background: "var(--accent)" }} />
-              </Link>
-            ))}
-            <button
-              onClick={toggle}
-              className="lang-btn flex items-center gap-1.5 ml-2"
-              aria-label="Toggle language">
-              <Globe className="w-3 h-3" />
-              {t.nav.toggleLang}
-            </button>
-          </div>
-          {/* Mobile buttons */}
-          <div className="sm:hidden flex items-center gap-2">
-            <button onClick={toggle} className="lang-btn flex items-center gap-1 py-1 px-2 text-xs">
-              <Globe className="w-3 h-3" />
-              {t.nav.toggleLang}
-            </button>
-            <button
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-              style={{ color: "var(--text-muted)" }}
-              onClick={() => setMobileNavOpen((v) => !v)}
-              aria-label="Toggle menu">
-              {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-        {/* Mobile dropdown */}
-        {mobileNavOpen && (
-          <div className="sm:hidden border-t px-4 py-3 flex flex-col gap-3 text-sm animate-slide-down"
-            style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-            {NAV_LINKS.map((l) => (
-              <Link key={l.href} href={l.href}
-                className="hover:text-white transition-colors py-1"
-                onClick={() => setMobileNavOpen(false)}>
-                {l.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </nav>
-
       {/* ── Hero ── */}
-      <section className="max-w-4xl mx-auto px-4 pt-24 pb-16 text-center">
+      <section className="max-w-4xl mx-auto px-4 pt-16 pb-16 text-center">
         {/* Badge */}
         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6 animate-fade-in ${mounted ? "" : "opacity-0"}`}
           style={{ background: "rgba(99,102,241,0.15)", color: "var(--accent)", border: "1px solid rgba(99,102,241,0.3)" }}>
@@ -250,4 +187,5 @@ export default function Home() {
     </div>
   );
 }
+
 

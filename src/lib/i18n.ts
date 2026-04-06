@@ -72,6 +72,7 @@ export const translations = {
     seasons: {
       title: "Seasons",
       seasonLabel: "{start}–{end}",
+      back: "Home",
     },
     // Season detail
     seasonDetail: {
@@ -111,6 +112,11 @@ export const translations = {
     common: {
       error: "Error — please try again",
       back: "Back",
+    },
+    // Event analysis
+    eventAnalysis: {
+      backTeam: "Team {num}",
+      backEvents: "Events",
     },
   },
 
@@ -185,6 +191,7 @@ export const translations = {
     seasons: {
       title: "赛季",
       seasonLabel: "{start}–{end}",
+      back: "首页",
     },
     // Season detail
     seasonDetail: {
@@ -224,6 +231,11 @@ export const translations = {
     common: {
       error: "出现错误 — 请重试",
       back: "返回",
+    },
+    // Event analysis
+    eventAnalysis: {
+      backTeam: "队伍 {num}",
+      backEvents: "赛事",
     },
   },
 };
