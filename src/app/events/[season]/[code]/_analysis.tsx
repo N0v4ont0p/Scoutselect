@@ -17,6 +17,7 @@ import {
   type CaptainApproach, type AllianceMatchup,
 } from "@/lib/analytics";
 import { formatScore, seasonName, cn } from "@/lib/utils";
+import { useI18n } from "@/context/LanguageContext";
 
 // ─── Tiny helpers ─────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ const PHASE_LABELS: Record<EventPhase, string> = {
 export default function EventAnalysisContent() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const season = parseInt(params.season as string, 10);
   const code = (params.code as string).toUpperCase();
 
@@ -250,7 +252,10 @@ export default function EventAnalysisContent() {
           href={searchParams.get("team") ? `/teams/${searchParams.get("team")}` : "/events"}
           className="flex items-center gap-1.5 text-sm shrink-0"
           style={{ color: "var(--text-muted)" }}>
-          <ArrowLeft className="w-4 h-4" /> {searchParams.get("team") ? `Team ${searchParams.get("team")}` : "Events"}
+          <ArrowLeft className="w-4 h-4" />
+          {searchParams.get("team")
+            ? t.eventAnalysis.backTeam.replace("{num}", searchParams.get("team")!)
+            : t.eventAnalysis.backEvents}
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-black truncate">

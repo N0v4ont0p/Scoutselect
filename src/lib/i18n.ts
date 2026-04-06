@@ -113,6 +113,11 @@ export const translations = {
       error: "Error — please try again",
       back: "Back",
     },
+    // Event analysis
+    eventAnalysis: {
+      backTeam: "Team {num}",
+      backEvents: "Events",
+    },
   },
 
   zh: {
@@ -226,6 +231,11 @@ export const translations = {
     common: {
       error: "出现错误 — 请重试",
       back: "返回",
+    },
+    // Event analysis
+    eventAnalysis: {
+      backTeam: "队伍 {num}",
+      backEvents: "赛事",
     },
   },
 };
