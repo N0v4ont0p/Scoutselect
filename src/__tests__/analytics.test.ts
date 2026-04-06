@@ -11,7 +11,7 @@ import type { Match } from '@/lib/ftcscout';
 function makeMatch(
   id: string,
   level: string,
-  played: boolean,
+  hasBeenPlayed: boolean,
   teams: { teamNumber: number; alliance: 'Red' | 'Blue'; dq?: boolean }[],
   redScore = 100,
   blueScore = 90
@@ -21,7 +21,7 @@ function makeMatch(
     matchNum: parseInt(id),
     series: 1,
     tournamentLevel: level,
-    played,
+    hasBeenPlayed,
     teams: teams.map(t => ({
       teamNumber: t.teamNumber,
       station: t.alliance === 'Red' ? 'Red1' : 'Blue1',
@@ -29,13 +29,13 @@ function makeMatch(
       surrogate: false,
       alliance: t.alliance,
     })),
-    scores: played
+    scores: hasBeenPlayed
       ? {
-          red: { totalPoints: redScore, autoPoints: 30, dcPoints: 50, endgamePoints: 20, penaltyPointsCommitted: 0 },
-          blue: { totalPoints: blueScore, autoPoints: 25, dcPoints: 45, endgamePoints: 20, penaltyPointsCommitted: 0 },
+          red: { totalPoints: redScore, autoPoints: 30, dcPoints: 50, penaltyPointsCommitted: 0 },
+          blue: { totalPoints: blueScore, autoPoints: 25, dcPoints: 45, penaltyPointsCommitted: 0 },
         }
       : undefined,
-    winner: played ? (redScore > blueScore ? 'Red' : 'Blue') : undefined,
+    winner: hasBeenPlayed ? (redScore > blueScore ? 'Red' : 'Blue') : undefined,
   };
 }
 

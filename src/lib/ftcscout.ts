@@ -52,7 +52,7 @@ export interface AllianceScores {
   totalPoints: number;
   autoPoints: number;
   dcPoints: number;
-  endgamePoints: number;
+  endgamePoints?: number;
   penaltyPointsCommitted: number;
 }
 
@@ -67,13 +67,13 @@ export interface Match {
     blue?: AllianceScores;
   };
   winner?: string;
-  played: boolean;
+  hasBeenPlayed: boolean;
 }
 
 export interface TeamStats {
   rank: number;
   rp?: number;
-  tbp?: number;
+  tb1?: number;
   wins: number;
   losses: number;
   ties: number;
@@ -82,10 +82,7 @@ export interface TeamStats {
     totalPoints?: number;
     autoPoints?: number;
     dcPoints?: number;
-    endgamePoints?: number;
     penaltyPointsCommitted?: number;
-    n?: number;
-    mean?: number;
   };
 }
 
@@ -105,7 +102,7 @@ export interface Ranking {
   losses: number;
   ties: number;
   rp?: number;
-  tbp?: number;
+  tb1?: number;
   qualMatchesPlayed: number;
 }
 
@@ -188,37 +185,60 @@ const EVENT_MATCHES_QUERY = gql`
         }
         scores {
           ... on MatchScores2025 {
-            red { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
-            blue { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
+            red { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+            blue { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+          }
+          ... on MatchScores2025Trad {
+            red { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+            blue { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
           ... on MatchScores2024 {
-            red { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
-            blue { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
+            red { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+            blue { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+          }
+          ... on MatchScores2024Trad {
+            red { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+            blue { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
           ... on MatchScores2023 {
-            red { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
-            blue { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
+            red { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+            blue { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+          }
+          ... on MatchScores2023Trad {
+            red { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+            blue { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
           ... on MatchScores2022 {
-            red { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
-            blue { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted }
+            red { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+            blue { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
         }
-        winner
-        played
+        hasBeenPlayed
       }
     }
   }
 `;
 
+type RawMatch = Omit<Match, 'winner'>;
+
+function computeWinner(scores?: { red?: { totalPoints: number }; blue?: { totalPoints: number } }): string | undefined {
+  if (!scores?.red || !scores?.blue) return undefined;
+  if (scores.red.totalPoints > scores.blue.totalPoints) return 'Red';
+  if (scores.blue.totalPoints > scores.red.totalPoints) return 'Blue';
+  return 'Tie';
+}
+
 export async function getEventMatches(season: number, code: string): Promise<Match[]> {
   try {
-    const data = await request<{ eventByCode?: { matches?: Match[] } }>(
+    const data = await request<{ eventByCode?: { matches?: RawMatch[] } }>(
       GRAPHQL_ENDPOINT,
       EVENT_MATCHES_QUERY,
       { season, code }
     );
-    return data.eventByCode?.matches ?? [];
+    return (data.eventByCode?.matches ?? []).map(m => ({
+      ...m,
+      winner: computeWinner(m.scores),
+    }));
   } catch {
     return [];
   }
@@ -231,20 +251,32 @@ const EVENT_RANKINGS_QUERY = gql`
         team { number name }
         stats {
           ... on TeamEventStats2025 {
-            rank rp tbp wins losses ties qualMatchesPlayed
-            tot { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted n mean }
+            rank rp tb1 wins losses ties qualMatchesPlayed
+            tot { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+          }
+          ... on TeamEventStats2025Trad {
+            rank rp tb1 wins losses ties qualMatchesPlayed
+            tot { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
           ... on TeamEventStats2024 {
-            rank rp tbp wins losses ties qualMatchesPlayed
-            tot { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted n mean }
+            rank rp tb1 wins losses ties qualMatchesPlayed
+            tot { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+          }
+          ... on TeamEventStats2024Trad {
+            rank rp tb1 wins losses ties qualMatchesPlayed
+            tot { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
           ... on TeamEventStats2023 {
-            rank rp tbp wins losses ties qualMatchesPlayed
-            tot { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted n mean }
+            rank rp tb1 wins losses ties qualMatchesPlayed
+            tot { totalPoints autoPoints dcPoints penaltyPointsCommitted }
+          }
+          ... on TeamEventStats2023Trad {
+            rank rp tb1 wins losses ties qualMatchesPlayed
+            tot { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
           ... on TeamEventStats2022 {
-            rank rp tbp wins losses ties qualMatchesPlayed
-            tot { totalPoints autoPoints dcPoints endgamePoints penaltyPointsCommitted n mean }
+            rank rp tb1 wins losses ties qualMatchesPlayed
+            tot { totalPoints autoPoints dcPoints penaltyPointsCommitted }
           }
         }
       }
