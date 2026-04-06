@@ -147,6 +147,9 @@ export interface PreviewTeam {
   winRate: number;
 }
 
+/** Max teams per batch GraphQL alias query — keeps query size reasonable for the FTCScout API. */
+const BATCH_CHUNK_SIZE = 15;
+
 /** Fetch season stats for a batch of teams (used for upcoming-event preview). */
 export async function getTeamsBatchSeasonStats(
   teamNumbers: number[],
@@ -155,7 +158,7 @@ export async function getTeamsBatchSeasonStats(
   if (!teamNumbers.length) return [];
 
   // Split into chunks to avoid huge queries
-  const chunkSize = 15;
+  const chunkSize = BATCH_CHUNK_SIZE;
   const results: PreviewTeam[] = [];
   for (let i = 0; i < teamNumbers.length; i += chunkSize) {
     const chunk = teamNumbers.slice(i, i + chunkSize);

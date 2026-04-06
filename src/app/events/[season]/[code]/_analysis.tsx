@@ -883,10 +883,16 @@ function FieldOverviewSection({
 
 type ThreatTier = "elite" | "strong" | "solid" | "unknown";
 
+// Tier thresholds: win rate and peak score cutoffs for classifying teams
+const ELITE_WIN_RATE = 0.7;
+const ELITE_SCORE    = 200;
+const STRONG_WIN_RATE = 0.5;
+const STRONG_SCORE   = 140;
+
 function threatTier(team: PreviewTeam): ThreatTier {
   if (team.matchesPlayed === 0) return "unknown";
-  if (team.winRate >= 0.7 || team.highScore >= 200) return "elite";
-  if (team.winRate >= 0.5 || team.highScore >= 140) return "strong";
+  if (team.winRate >= ELITE_WIN_RATE || team.highScore >= ELITE_SCORE) return "elite";
+  if (team.winRate >= STRONG_WIN_RATE || team.highScore >= STRONG_SCORE) return "strong";
   return "solid";
 }
 
