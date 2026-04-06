@@ -49,12 +49,12 @@ export default function Home() {
   }, [query]);
 
   const features = [
-    { icon: <BarChart2 className="w-5 h-5" />, title: "OPR Analytics", desc: "True offensive power ratings via Gaussian elimination across all qual matches." },
-    { icon: <Target className="w-5 h-5" />, title: "Monte Carlo Sim", desc: "Win-probability estimates using Box-Muller sampling — 1,000 runs per matchup." },
-    { icon: <Users className="w-5 h-5" />, title: "Synergy Scoring", desc: "Role fingerprints in auto/teleop/endgame space with complementarity scoring." },
-    { icon: <TrendingUp className="w-5 h-5" />, title: "Picklist Generator", desc: "Safe · Balanced · Ceiling · Counter modes with smart filters." },
-    { icon: <Zap className="w-5 h-5" />, title: "Phase Detection", desc: "Auto-detects event phase and surfaces the most relevant analytics tab." },
-    { icon: <Search className="w-5 h-5" />, title: "Live Data", desc: "Powered by the FTCScout public API with smart TTL caching." },
+    { icon: <Target className="w-5 h-5" />, title: "Alliance Role Detector", desc: "Enter your team — ScoutSelect instantly tells you if you're a captain, in the pick pool, or on the bubble, based on live rankings." },
+    { icon: <BarChart2 className="w-5 h-5" />, title: "Smart Pick Optimizer", desc: "Snake-draft simulation models who other captains will take before your turn, giving you availability-adjusted pick rankings." },
+    { icon: <Users className="w-5 h-5" />, title: "Pitch Strategy Engine", desc: "Ranked list of captains who need YOU most, with calculated improvement deltas and ready-to-say talking points for each." },
+    { icon: <TrendingUp className="w-5 h-5" />, title: "Synergy & Fit Scoring", desc: "Role fingerprints in auto/teleop/endgame space expose complementarity gaps — no more guessing who fills what hole." },
+    { icon: <Zap className="w-5 h-5" />, title: "Win Probability Projections", desc: "Monte Carlo simulation (2,000 runs) forecasts your win probability against every projected opponent alliance." },
+    { icon: <Search className="w-5 h-5" />, title: "Team-First Discovery", desc: "Enter your team number to see your events by name. No event codes to memorise. Click any event to analyse." },
   ];
 
   return (
@@ -98,7 +98,7 @@ export default function Home() {
           <span className="gradient-text">ScoutSelect</span>
         </h1>
         <p className="text-xl mb-10" style={{ color: "var(--text-muted)" }}>
-          Data-first alliance selection for FTC teams. OPR · Monte Carlo · Synergy Scoring
+          Alliance selection intelligence for FTC teams. Know who to pick — and who to pitch yourself to.
         </p>
 
         {/* Search */}
