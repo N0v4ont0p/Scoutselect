@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Force dark color scheme so browsers render form controls in dark mode ── */
+html, body {
+  color-scheme: dark;
+}
+
+/* ─── Override browser autofill styling so text remains visible ─────────────── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #1e293b inset;
+  -webkit-text-fill-color: #f1f5f9;
+  caret-color: #f1f5f9;
+}
+
 /* ─── Design tokens (always dark) ─────────────────────────────────────────── */
 :root {
   --background: 222 47% 5%;

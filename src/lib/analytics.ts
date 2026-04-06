@@ -12,7 +12,7 @@ export function detectEventPhase(matches: Match[]): EventPhase {
 
   const quals = matches.filter(m => m.tournamentLevel === 'QUAL');
   const playoffs = matches.filter(m =>
-    ['PLAYOFF', 'SEMIFINAL', 'FINAL'].includes(m.tournamentLevel)
+    ['ELIM', 'PLAYOFF', 'SEMIFINAL', 'FINAL', 'ELIMINATION'].includes(m.tournamentLevel)
   );
 
   const qualsPlayed = quals.filter(m => m.played);

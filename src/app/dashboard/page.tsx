@@ -523,7 +523,7 @@ function DashboardContent() {
         {showEventPicker && events.length > 0 && (
           <div className="max-w-2xl mx-auto mt-2 animate-fade-in">
             <Select value={selectedEvent} onValueChange={v => { setSelectedEvent(v); setShowEventPicker(false); }}>
-              <SelectTrigger className="bg-white/6 border-white/10 text-white text-xs">
+              <SelectTrigger className="bg-slate-800 border-slate-600 text-slate-100 text-xs">
                 <SelectValue placeholder="Select event" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-white/10">
