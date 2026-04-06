@@ -97,12 +97,10 @@ function DashboardContent() {
       setTeam(teamData?.error ? null : teamData);
       const evList: TeamEvent[] = Array.isArray(eventsData) ? eventsData : [];
       setEvents(evList);
-      if (!selectedEvent && evList.length > 0) {
-        setSelectedEvent(evList[evList.length - 1].event.code);
-      }
+      setSelectedEvent(prev => (!prev && evList.length > 0) ? evList[evList.length - 1].event.code : prev);
       setLoading(false);
     }).catch(() => { setError('Failed to load team data. Check your connection.'); setLoading(false); });
-  }, [teamNumber, season]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [teamNumber, season]);
 
   // Load event data
   const loadEventData = useCallback(async () => {
