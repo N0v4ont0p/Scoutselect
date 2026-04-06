@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTeam } from '@/lib/ftcscout';
 import { withCache, TTL } from '@/lib/cache';
 
-export async function GET(_req: NextRequest, { params }: { params: { teamNumber: string } }) {
-  const teamNumber = parseInt(params.teamNumber);
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ teamNumber: string }> }) {
+  const { teamNumber: teamNumberStr } = await params;
+  const teamNumber = parseInt(teamNumberStr);
   if (isNaN(teamNumber)) return NextResponse.json({ error: 'Invalid team number' }, { status: 400 });
   try {
     const team = await withCache(`team:${teamNumber}`, TTL.TEAM_DATA, () => getTeam(teamNumber));
