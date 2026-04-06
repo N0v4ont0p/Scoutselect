@@ -39,7 +39,15 @@ export interface TeamMetrics {
   trend: number;
   matchCount: number;
   scores: number[];
+  stddev?: number;
+  recentScores?: number[];
+  opr?: number;
+  autoOpr?: number;
+  teleopOpr?: number;
+  endgameOpr?: number;
 }
+
+// ─── Math helpers ────────────────────────────────────────────────────────────
 
 function mean(arr: number[]): number {
   if (!arr.length) return 0;
@@ -60,11 +68,98 @@ function iqr(arr: number[]): number {
   return q3 - q1;
 }
 
-export function computeTeamMetrics(teamNumber: number, matches: Match[], teamName = ''): TeamMetrics {
-  const quals = matches.filter(
-    m => m.tournamentLevel === 'QUAL' && m.played
-  );
+// Gaussian elimination with partial pivoting for OPR least-squares solve
+function gaussianElimination(A: number[][], b: number[]): number[] {
+  const n = A.length;
+  const aug = A.map((row, i) => [...row, b[i]]);
 
+  for (let col = 0; col < n; col++) {
+    let maxRow = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(aug[row][col]) > Math.abs(aug[maxRow][col])) maxRow = row;
+    }
+    [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
+    if (Math.abs(aug[col][col]) < 1e-10) continue;
+    for (let row = 0; row < n; row++) {
+      if (row === col) continue;
+      const factor = aug[row][col] / aug[col][col];
+      for (let j = col; j <= n; j++) aug[row][j] -= factor * aug[col][j];
+    }
+  }
+
+  return aug.map((row, i) => (Math.abs(aug[i][i]) > 1e-10 ? row[n] / row[i] : 0));
+}
+
+// ─── OPR ─────────────────────────────────────────────────────────────────────
+
+export interface OPRResult {
+  totalOpr: number;
+  autoOpr: number;
+  teleopOpr: number;
+  endgameOpr: number;
+}
+
+/**
+ * Compute Offensive Power Ratings for all teams at an event.
+ * Uses least-squares regression (normal equations) to distribute alliance
+ * scores among individual team contributions.
+ */
+export function computeOPR(teamList: number[], matches: Match[]): Map<number, OPRResult> {
+  if (teamList.length === 0) return new Map();
+
+  const teamIndex = new Map(teamList.map((t, i) => [t, i]));
+  const n = teamList.length;
+  const playedMatches = matches.filter(m => m.played && m.tournamentLevel === 'QUAL');
+  if (playedMatches.length === 0) return new Map();
+
+  const AtA = Array.from({ length: n }, () => new Array(n).fill(0));
+  const Atb_total = new Array<number>(n).fill(0);
+  const Atb_auto = new Array<number>(n).fill(0);
+  const Atb_teleop = new Array<number>(n).fill(0);
+  const Atb_endgame = new Array<number>(n).fill(0);
+
+  for (const match of playedMatches) {
+    for (const color of ['Red', 'Blue'] as const) {
+      const alliance = match.teams.filter(t => t.alliance === color && !t.dq);
+      const scores = color === 'Red' ? match.scores?.red : match.scores?.blue;
+      if (!scores) continue;
+
+      const indices = alliance
+        .map(t => teamIndex.get(t.teamNumber))
+        .filter((i): i is number => i !== undefined);
+
+      for (const i of indices) {
+        Atb_total[i] += scores.totalPoints ?? 0;
+        Atb_auto[i] += scores.autoPoints ?? 0;
+        Atb_teleop[i] += scores.dcPoints ?? 0;
+        Atb_endgame[i] += scores.endgamePoints ?? 0;
+        for (const j of indices) AtA[i][j]++;
+      }
+    }
+  }
+
+  const opr_total = gaussianElimination(AtA.map(r => [...r]), [...Atb_total]);
+  const opr_auto = gaussianElimination(AtA.map(r => [...r]), [...Atb_auto]);
+  const opr_teleop = gaussianElimination(AtA.map(r => [...r]), [...Atb_teleop]);
+  const opr_endgame = gaussianElimination(AtA.map(r => [...r]), [...Atb_endgame]);
+
+  return new Map(
+    teamList.map((t, i) => [
+      t,
+      {
+        totalOpr: opr_total[i] ?? 0,
+        autoOpr: opr_auto[i] ?? 0,
+        teleopOpr: opr_teleop[i] ?? 0,
+        endgameOpr: opr_endgame[i] ?? 0,
+      },
+    ])
+  );
+}
+
+// ─── Team metrics ─────────────────────────────────────────────────────────────
+
+export function computeTeamMetrics(teamNumber: number, matches: Match[], teamName = ''): TeamMetrics {
+  const quals = matches.filter(m => m.tournamentLevel === 'QUAL' && m.played);
   const teamMatches = quals.filter(m => m.teams.some(t => t.teamNumber === teamNumber));
 
   const autos: number[] = [];
@@ -87,15 +182,9 @@ export function computeTeamMetrics(teamNumber: number, matches: Match[], teamNam
   }
 
   const n = totals.length;
-  const eventMeanAuto = mean(quals.flatMap(m =>
-    [m.scores?.red?.autoPoints ?? 0, m.scores?.blue?.autoPoints ?? 0]
-  ));
-  const eventMeanTeleop = mean(quals.flatMap(m =>
-    [m.scores?.red?.dcPoints ?? 0, m.scores?.blue?.dcPoints ?? 0]
-  ));
-  const eventMeanEndgame = mean(quals.flatMap(m =>
-    [m.scores?.red?.endgamePoints ?? 0, m.scores?.blue?.endgamePoints ?? 0]
-  ));
+  const eventMeanAuto = mean(quals.flatMap(m => [m.scores?.red?.autoPoints ?? 0, m.scores?.blue?.autoPoints ?? 0]));
+  const eventMeanTeleop = mean(quals.flatMap(m => [m.scores?.red?.dcPoints ?? 0, m.scores?.blue?.dcPoints ?? 0]));
+  const eventMeanEndgame = mean(quals.flatMap(m => [m.scores?.red?.endgamePoints ?? 0, m.scores?.blue?.endgamePoints ?? 0]));
 
   const shrink = (vals: number[], eventMean: number) => {
     if (!vals.length) return eventMean;
@@ -110,7 +199,8 @@ export function computeTeamMetrics(teamNumber: number, matches: Match[], teamNam
   const totalExpected = expectedAuto + expectedTeleop + expectedEndgame;
 
   const consistency = iqr(totals);
-  const cv = totalExpected > 0 ? stddev(totals) / totalExpected : 1;
+  const sd = stddev(totals);
+  const cv = totalExpected > 0 ? sd / totalExpected : 1;
   const reliabilityIndex = Math.max(0, Math.min(100, 100 - cv * 100));
 
   let trend = 0;
@@ -118,15 +208,14 @@ export function computeTeamMetrics(teamNumber: number, matches: Match[], teamNam
     let weightedSum = 0;
     let totalWeight = 0;
     for (let i = 0; i < totals.length; i++) {
-      // Exponential decay: recent matches weighted more heavily (halved per step back)
-      const TREND_DECAY_FACTOR = 0.5;
-      const w = Math.pow(TREND_DECAY_FACTOR, totals.length - 1 - i);
+      const w = Math.pow(0.5, totals.length - 1 - i);
       weightedSum += totals[i] * w;
       totalWeight += w;
     }
-    const recent = weightedSum / totalWeight;
-    trend = recent - mean(totals);
+    trend = weightedSum / totalWeight - mean(totals);
   }
+
+  const recentScores = totals.slice(-6);
 
   return {
     teamNumber,
@@ -141,8 +230,12 @@ export function computeTeamMetrics(teamNumber: number, matches: Match[], teamNam
     trend,
     matchCount: n,
     scores: totals,
+    stddev: sd,
+    recentScores,
   };
 }
+
+// ─── Synergy ──────────────────────────────────────────────────────────────────
 
 export interface SynergyScore {
   teamA: number;
@@ -152,46 +245,78 @@ export interface SynergyScore {
   synergyScore: number;
 }
 
+/**
+ * Compute role-fingerprint synergy using all three scoring phases.
+ * Complementarity rewards teams that fill different phase roles;
+ * overlapPenalty discourages role collision on the same phase.
+ */
 export function computeSynergy(metricsA: TeamMetrics, metricsB: TeamMetrics): SynergyScore {
-  const totalA = metricsA.totalExpected;
-  const totalB = metricsB.totalExpected;
-  const combined = totalA + totalB;
+  const totalA = metricsA.totalExpected || 1;
+  const totalB = metricsB.totalExpected || 1;
+  const combined = metricsA.totalExpected + metricsB.totalExpected;
 
-  const autoRatioA = totalA > 0 ? metricsA.expectedAuto / totalA : 0;
-  const autoRatioB = totalB > 0 ? metricsB.expectedAuto / totalB : 0;
-  const complementarity = Math.abs(autoRatioA - autoRatioB) * 50;
+  // Role fingerprints (fraction of score per phase)
+  const fpA = {
+    auto: metricsA.expectedAuto / totalA,
+    teleop: metricsA.expectedTeleop / totalA,
+    endgame: metricsA.expectedEndgame / totalA,
+  };
+  const fpB = {
+    auto: metricsB.expectedAuto / totalB,
+    teleop: metricsB.expectedTeleop / totalB,
+    endgame: metricsB.expectedEndgame / totalB,
+  };
 
-  const overlapPenalty = (1 - Math.abs(autoRatioA - autoRatioB)) * 10;
+  // Euclidean distance in role-fingerprint space → high distance = complementary
+  const dist = Math.sqrt(
+    (fpA.auto - fpB.auto) ** 2 +
+    (fpA.teleop - fpB.teleop) ** 2 +
+    (fpA.endgame - fpB.endgame) ** 2
+  );
+
+  // Max distance in 3D simplex ≈ √2
+  const complementarity = (dist / Math.SQRT2) * 60;
+
+  // Penalise when both teams dominate the same phase
+  const maxOverlap = Math.max(
+    Math.min(fpA.auto, fpB.auto),
+    Math.min(fpA.teleop, fpB.teleop),
+    Math.min(fpA.endgame, fpB.endgame)
+  );
+  const overlapPenalty = maxOverlap * 20;
 
   const synergyScore = combined + complementarity - overlapPenalty;
 
-  return {
-    teamA: metricsA.teamNumber,
-    teamB: metricsB.teamNumber,
-    complementarity,
-    overlapPenalty,
-    synergyScore,
-  };
+  return { teamA: metricsA.teamNumber, teamB: metricsB.teamNumber, complementarity, overlapPenalty, synergyScore };
 }
+
+// ─── Monte Carlo ──────────────────────────────────────────────────────────────
 
 export function simulateWinProbability(
   allianceA: TeamMetrics[],
   allianceB: TeamMetrics[],
   simulations = 1000
 ): { winProbability: number; expectedMargin: number; upsetRisk: number } {
+  if (allianceA.length === 0 && allianceB.length === 0) return { winProbability: 0.5, expectedMargin: 0, upsetRisk: 1 };
+  if (allianceB.length === 0) return { winProbability: 1, expectedMargin: allianceA.reduce((s, m) => s + m.totalExpected, 0), upsetRisk: 0 };
+
   let wins = 0;
   let totalMargin = 0;
   let closeCalls = 0;
 
-  const NOISE_FLOOR_PERCENTAGE = 0.05;
-  const MIN_STANDARD_DEVIATION = 1;
+  const NOISE_FLOOR = 0.05;
+  const MIN_SD = 1;
 
   const sample = (m: TeamMetrics) => {
     const sd = Math.max(
-      stddev(m.scores.length >= 2 ? m.scores : [m.totalExpected]),
-      m.totalExpected * NOISE_FLOOR_PERCENTAGE + MIN_STANDARD_DEVIATION
+      m.stddev ?? stddev(m.scores.length >= 2 ? m.scores : [m.totalExpected]),
+      m.totalExpected * NOISE_FLOOR + MIN_SD
     );
-    return Math.max(0, m.totalExpected + (Math.random() - 0.5) * 2 * sd);
+    // Box-Muller transform for Gaussian sample
+    const u = Math.max(1e-10, Math.random());
+    const v = Math.random();
+    const gauss = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    return Math.max(0, m.totalExpected + gauss * sd);
   };
 
   for (let i = 0; i < simulations; i++) {
@@ -210,6 +335,38 @@ export function simulateWinProbability(
   };
 }
 
+// ─── Picklist filters ─────────────────────────────────────────────────────────
+
+export type PicklistFilter =
+  | 'ALL'
+  | 'AUTO_HEAVY'
+  | 'TELEOP_HEAVY'
+  | 'ENDGAME_HEAVY'
+  | 'LOW_PENALTIES'
+  | 'HIGH_RELIABILITY'
+  | 'HIGH_CEILING'
+  | 'TRENDING_UP';
+
+export function filterPicklist(picks: PickRecommendation[], filter: PicklistFilter): PickRecommendation[] {
+  if (filter === 'ALL') return picks;
+  return picks.filter(pick => {
+    const m = pick.metrics;
+    const total = m.totalExpected || 1;
+    switch (filter) {
+      case 'AUTO_HEAVY':      return m.expectedAuto / total > 0.32;
+      case 'TELEOP_HEAVY':    return m.expectedTeleop / total > 0.50;
+      case 'ENDGAME_HEAVY':   return m.expectedEndgame / total > 0.20;
+      case 'LOW_PENALTIES':   return m.expectedPenalties < 5;
+      case 'HIGH_RELIABILITY':return m.reliabilityIndex >= 70;
+      case 'HIGH_CEILING':    return m.totalExpected > 80 || m.trend > 5;
+      case 'TRENDING_UP':     return m.trend > 3;
+      default:                return true;
+    }
+  });
+}
+
+// ─── Picklist generation ──────────────────────────────────────────────────────
+
 export type PicklistMode = 'SAFE' | 'BALANCED' | 'CEILING' | 'COUNTER';
 
 export interface PickRecommendation {
@@ -222,6 +379,7 @@ export interface PickRecommendation {
   warnings: string[];
   metrics: TeamMetrics;
   synergyScore: SynergyScore;
+  winProbability?: number;
 }
 
 export function generatePicklist(
@@ -240,32 +398,38 @@ export function generatePicklist(
       switch (mode) {
         case 'SAFE':
           score = candidate.reliabilityIndex * 0.5 + candidate.totalExpected * 0.3 + synergy.synergyScore * 0.2;
-          if (candidate.reliabilityIndex > 70) factors.push('High reliability');
+          if (candidate.reliabilityIndex > 70) factors.push(`Reliability ${candidate.reliabilityIndex.toFixed(0)}%`);
           if (candidate.consistency < 15) factors.push('Very consistent scores');
+          if (synergy.overlapPenalty < 5) factors.push('Low role collision risk');
           break;
         case 'BALANCED':
           score = candidate.totalExpected * 0.4 + synergy.synergyScore * 0.35 + candidate.reliabilityIndex * 0.25;
-          if (synergy.complementarity > 20) factors.push('Good role complementarity');
-          if (candidate.totalExpected > captainMetrics.totalExpected * 0.8) factors.push('Strong scorer');
+          if (synergy.complementarity > 20) factors.push('Strong role complementarity');
+          if (candidate.totalExpected > captainMetrics.totalExpected * 0.8) factors.push('High scoring output');
+          if (candidate.reliabilityIndex > 60) factors.push(`${candidate.reliabilityIndex.toFixed(0)}% reliable`);
           break;
         case 'CEILING':
           score = candidate.totalExpected * 0.6 + candidate.trend * 2 + synergy.synergyScore * 0.2;
-          if (candidate.trend > 5) factors.push('Improving trend');
-          if (candidate.totalExpected > 100) factors.push('High ceiling scorer');
-          if (candidate.reliabilityIndex < 50) warnings.push('Inconsistent performance');
+          if (candidate.trend > 5) factors.push(`↑ Trending +${candidate.trend.toFixed(1)} pts`);
+          if (candidate.totalExpected > 100) factors.push('High peak score potential');
+          if (candidate.reliabilityIndex < 50) warnings.push('High variance scorer');
           break;
         case 'COUNTER':
           score = candidate.expectedAuto * 0.5 + candidate.expectedEndgame * 0.3 + candidate.totalExpected * 0.2;
-          if (candidate.expectedAuto > 30) factors.push('Strong autonomous');
-          if (candidate.expectedEndgame > 20) factors.push('Strong endgame');
+          if (candidate.expectedAuto > 25) factors.push(`Auto: ${candidate.expectedAuto.toFixed(0)} avg pts`);
+          if (candidate.expectedEndgame > 15) factors.push(`Endgame: ${candidate.expectedEndgame.toFixed(0)} avg pts`);
           break;
       }
 
-      if (candidate.matchCount < 3) warnings.push('Limited match data');
-      if (candidate.trend < -10) warnings.push('Declining performance');
+      if (candidate.matchCount < 3) warnings.push('Limited data (< 3 matches)');
+      if (candidate.trend < -10) warnings.push('Declining trend');
+      if (candidate.expectedPenalties > 8) warnings.push('High penalty risk');
       if (factors.length === 0) factors.push('Solid overall contributor');
 
-      const confidence = Math.min(100, candidate.matchCount * 15 + candidate.reliabilityIndex * 0.5);
+      const confidence = Math.min(100, candidate.matchCount * 12 + candidate.reliabilityIndex * 0.4);
+
+      // Quick win probability with 500 sims for ranking purposes
+      const wp = simulateWinProbability([captainMetrics, candidate], [], 500);
 
       return {
         teamNumber: candidate.teamNumber,
@@ -277,6 +441,7 @@ export function generatePicklist(
         warnings,
         metrics: candidate,
         synergyScore: synergy,
+        winProbability: wp.winProbability,
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -284,6 +449,8 @@ export function generatePicklist(
 
   return scored;
 }
+
+// ─── Alliance pitches ─────────────────────────────────────────────────────────
 
 export interface AlliancePitch {
   captainTeam: number;
@@ -294,6 +461,8 @@ export interface AlliancePitch {
   redFlags: string[];
   winProbabilityIncrease: number;
   confidence: number;
+  synergy: SynergyScore;
+  captainRank: number;
 }
 
 export function generateAlliancePitches(
@@ -313,10 +482,12 @@ export function generateAlliancePitches(
         captainName: captainRanking.teamName,
         fitScore: 50,
         whyTheyNeedYou: ['Adds scoring depth to alliance'],
-        talkingPoints: [`Team ${myMetrics.teamNumber} can contribute consistently`],
+        talkingPoints: [`Team ${myMetrics.teamNumber} averages ${myMetrics.totalExpected.toFixed(0)} pts/match`],
         redFlags: [],
         winProbabilityIncrease: 0,
         confidence: 30,
+        synergy: { teamA: captainRanking.teamNumber, teamB: myMetrics.teamNumber, complementarity: 0, overlapPenalty: 0, synergyScore: 0 },
+        captainRank: captainRanking.rank,
       };
     }
 
@@ -329,37 +500,49 @@ export function generateAlliancePitches(
     const talkingPoints: string[] = [];
     const redFlags: string[] = [];
 
-    if (myMetrics.expectedAuto > captainMetrics.expectedAuto) {
-      whyTheyNeedYou.push('Stronger autonomous routine than captain');
+    // Auto comparison
+    if (myMetrics.expectedAuto > captainMetrics.expectedAuto * 1.1) {
+      whyTheyNeedYou.push('Stronger autonomous than captain');
       talkingPoints.push(`Our auto averages ${myMetrics.expectedAuto.toFixed(0)} pts vs their ${captainMetrics.expectedAuto.toFixed(0)} pts`);
     }
-    if (myMetrics.expectedEndgame > captainMetrics.expectedEndgame) {
-      whyTheyNeedYou.push('Better endgame performance');
-      talkingPoints.push(`We average ${myMetrics.expectedEndgame.toFixed(0)} endgame points`);
+    // Endgame comparison
+    if (myMetrics.expectedEndgame > captainMetrics.expectedEndgame * 1.1) {
+      whyTheyNeedYou.push('Outperforms captain in endgame');
+      talkingPoints.push(`Endgame avg ${myMetrics.expectedEndgame.toFixed(0)} pts (${((myMetrics.expectedEndgame / myMetrics.totalExpected) * 100).toFixed(0)}% of our score)`);
     }
-    if (synergy.complementarity > 20) {
-      whyTheyNeedYou.push('Complementary scoring profile');
+    // Teleop
+    if (myMetrics.expectedTeleop > captainMetrics.expectedTeleop * 1.1) {
+      whyTheyNeedYou.push('Higher teleop output than captain');
+      talkingPoints.push(`Teleop avg ${myMetrics.expectedTeleop.toFixed(0)} pts/match`);
     }
+    // Complementarity
+    if (synergy.complementarity > 25) {
+      whyTheyNeedYou.push('Complementary scoring profile — covers captain\'s gaps');
+    }
+    // Reliability
     if (myMetrics.reliabilityIndex > 70) {
-      talkingPoints.push(`${myMetrics.reliabilityIndex.toFixed(0)}% reliability index - we show up every match`);
+      talkingPoints.push(`${myMetrics.reliabilityIndex.toFixed(0)}% reliability index — consistent every match`);
     }
+    // Trend
     if (myMetrics.trend > 5) {
-      talkingPoints.push('Performance has been improving each match');
+      talkingPoints.push(`Improving: +${myMetrics.trend.toFixed(1)} pts trend this event`);
     }
-    if (myMetrics.matchCount < 3) {
-      redFlags.push('Limited match data may affect evaluation');
-    }
-    if (myMetrics.reliabilityIndex < 40) {
-      redFlags.push('Inconsistent scoring history');
-    }
-    if (whyTheyNeedYou.length === 0) {
-      whyTheyNeedYou.push('Provides reliable scoring depth');
-    }
-    if (talkingPoints.length === 0) {
-      talkingPoints.push(`Averaged ${myMetrics.totalExpected.toFixed(0)} pts/match this event`);
+    // Win increase
+    if (winIncrease > 5) {
+      talkingPoints.push(`Adding us raises your win probability by ~${winIncrease.toFixed(0)}%`);
     }
 
-    const fitScore = Math.min(100, (synergy.synergyScore / 200) * 100);
+    // Red flags
+    if (myMetrics.matchCount < 3) redFlags.push('Limited data (< 3 qual matches)');
+    if (myMetrics.reliabilityIndex < 40) redFlags.push('High scoring variance');
+    if (myMetrics.expectedPenalties > 8) redFlags.push(`Penalty risk — avg ${myMetrics.expectedPenalties.toFixed(0)} pts committed`);
+    if (myMetrics.trend < -8) redFlags.push('Declining trend this event');
+
+    if (whyTheyNeedYou.length === 0) whyTheyNeedYou.push('Adds reliable scoring depth');
+    if (talkingPoints.length === 0) talkingPoints.push(`Averaged ${myMetrics.totalExpected.toFixed(0)} pts/match this event`);
+
+    // Fit score: normalise synergy score against a 200-pt reference
+    const fitScore = Math.max(0, Math.min(100, (synergy.synergyScore / 250) * 100));
 
     return {
       captainTeam: captainRanking.teamNumber,
@@ -370,6 +553,8 @@ export function generateAlliancePitches(
       redFlags,
       winProbabilityIncrease: Math.max(0, winIncrease),
       confidence: Math.min(100, myMetrics.matchCount * 15 + 20),
+      synergy,
+      captainRank: captainRanking.rank,
     };
   });
 }
