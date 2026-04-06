@@ -139,7 +139,7 @@ export default function Home() {
         </p>
 
         {/* ── Search ── */}
-        <div className={`relative max-w-lg mx-auto mb-16 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}>
+        <div className={`relative max-w-lg mx-auto mb-16 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`} style={{ zIndex: 60 }}>
           <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
             style={{ border: "1px solid var(--border)" }}>
             <Search className="w-5 h-5 shrink-0 transition-colors duration-200" style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} />

@@ -122,6 +122,123 @@ function statsFragment(season: number): string {
   return `... on TeamEventStats${season} { ${body} }`;
 }
 
+// ---------- Preview stats fragment (minimal, for batch queries) ----------
+function previewStatsFragment(season: number): string {
+  const body = "wins losses ties qualMatchesPlayed max { totalPoints }";
+  if (season === 2020) {
+    return `... on TeamEventStats2020Trad { ${body} }\n... on TeamEventStats2020Remote { ${body} }`;
+  }
+  if (season === 2021) {
+    return `... on TeamEventStats2021Trad { ${body} }\n... on TeamEventStats2021Remote { ${body} }`;
+  }
+  return `... on TeamEventStats${season} { ${body} }`;
+}
+
+// ---------- Pre-event scout data ----------
+export interface PreviewTeam {
+  teamNumber: number;
+  name: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  matchesPlayed: number;
+  eventsPlayed: number;
+  highScore: number;
+  winRate: number;
+}
+
+/** Max teams per batch GraphQL alias query — keeps query size reasonable for the FTCScout API. */
+const BATCH_CHUNK_SIZE = 15;
+
+/** Fetch season stats for a batch of teams (used for upcoming-event preview). */
+export async function getTeamsBatchSeasonStats(
+  teamNumbers: number[],
+  season: number
+): Promise<PreviewTeam[]> {
+  if (!teamNumbers.length) return [];
+
+  // Split into chunks to avoid huge queries
+  const chunkSize = BATCH_CHUNK_SIZE;
+  const results: PreviewTeam[] = [];
+  for (let i = 0; i < teamNumbers.length; i += chunkSize) {
+    const chunk = teamNumbers.slice(i, i + chunkSize);
+    const frag = previewStatsFragment(season);
+    // Build a multi-alias batch query
+    const aliases = chunk
+      .map(
+        (n) => `
+      t${n}: teamByNumber(number: ${n}) {
+        number
+        name
+        events(season: ${season}) {
+          event { finished }
+          stats { ${frag} }
+        }
+      }`
+      )
+      .join("\n");
+    const q = `query BatchPreview { ${aliases} }`;
+
+    interface RawStats {
+      wins?: number;
+      losses?: number;
+      ties?: number;
+      qualMatchesPlayed?: number;
+      max?: { totalPoints: number };
+    }
+    interface RawTeam {
+      number: number;
+      name: string;
+      events: {
+        event: { finished: boolean };
+        stats: RawStats | null;
+      }[];
+    }
+    type BatchResult = Record<string, RawTeam | null>;
+
+    try {
+      const data = await gql<BatchResult>(q);
+      for (const n of chunk) {
+        const team = data[`t${n}`];
+        if (!team) continue;
+        const done = team.events.filter((e) => e.event.finished && e.stats);
+        const wins = done.reduce((s, e) => s + (e.stats?.wins ?? 0), 0);
+        const losses = done.reduce((s, e) => s + (e.stats?.losses ?? 0), 0);
+        const ties = done.reduce((s, e) => s + (e.stats?.ties ?? 0), 0);
+        const played = done.reduce((s, e) => s + (e.stats?.qualMatchesPlayed ?? 0), 0);
+        const highScore = Math.max(0, ...done.map((e) => e.stats?.max?.totalPoints ?? 0));
+        results.push({
+          teamNumber: n,
+          name: team.name,
+          wins,
+          losses,
+          ties,
+          matchesPlayed: played,
+          eventsPlayed: done.length,
+          highScore,
+          winRate: played > 0 ? wins / played : 0,
+        });
+      }
+    } catch {
+      // If a chunk fails, add placeholder entries so the UI still shows team numbers
+      for (const n of chunk) {
+        results.push({
+          teamNumber: n,
+          name: `Team ${n}`,
+          wins: 0,
+          losses: 0,
+          ties: 0,
+          matchesPlayed: 0,
+          eventsPlayed: 0,
+          highScore: 0,
+          winRate: 0,
+        });
+      }
+    }
+  }
+  return results;
+}
+
 // ---------- API functions ----------
 export async function searchTeams(query: string): Promise<FTCTeam[]> {
   const q = `
