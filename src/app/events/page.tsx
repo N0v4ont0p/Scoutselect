@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Calendar, MapPin, ChevronRight, Zap, ArrowRight, Globe } from "lucide-react";
+import { Search, Calendar, MapPin, ChevronRight, Zap, ArrowRight } from "lucide-react";
 import { seasonName, cn, getCurrentSeason } from "@/lib/utils";
 import { useI18n } from "@/context/LanguageContext";
 
@@ -32,7 +32,7 @@ function eventStatus(ev: FTCEvent) {
 }
 
 export default function EventsPage() {
-  const { t, toggle } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
   const defaultSeason = getCurrentSeason();
   const [season, setSeason] = useState(defaultSeason);
@@ -78,15 +78,11 @@ export default function EventsPage() {
     <div className="max-w-3xl mx-auto px-4 py-10 animate-fade-in">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center mb-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
             style={{ background: "rgba(99,102,241,0.15)", color: "var(--accent)", border: "1px solid rgba(99,102,241,0.3)" }}>
             <Zap className="w-3 h-3" /> {t.events.badge}
           </div>
-          <button onClick={toggle} className="lang-btn flex items-center gap-1.5">
-            <Globe className="w-3 h-3" />
-            {t.nav.toggleLang}
-          </button>
         </div>
         <h1 className="text-3xl font-black mb-2 animate-slide-up">{t.events.title}</h1>
         <p className="text-sm animate-slide-up stagger-1" style={{ color: "var(--text-muted)" }}>

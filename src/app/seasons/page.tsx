@@ -1,22 +1,22 @@
 "use client";
 import Link from "next/link";
-import { Globe } from "lucide-react";
+import { Home } from "lucide-react";
 import { seasonName } from "@/lib/utils";
 import { useI18n } from "@/context/LanguageContext";
 
 const SEASONS = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
 export default function SeasonsPage() {
-  const { t, toggle } = useI18n();
+  const { t } = useI18n();
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-black animate-slide-up">{t.seasons.title}</h1>
-        <button onClick={toggle} className="lang-btn flex items-center gap-1.5">
-          <Globe className="w-3 h-3" />
-          {t.nav.toggleLang}
-        </button>
-      </div>
+      <Link href="/"
+        className="inline-flex items-center gap-2 text-sm mb-8 px-3 py-1.5 rounded-lg transition-all duration-200 hover:bg-white/5"
+        style={{ color: "var(--text-muted)" }}>
+        <Home className="w-4 h-4" />
+        {t.teams.back}
+      </Link>
+      <h1 className="text-3xl font-black mb-8 animate-slide-up">{t.seasons.title}</h1>
       <div className="grid sm:grid-cols-2 gap-4">
         {SEASONS.slice().reverse().map((s, i) => (
           <Link key={s} href={`/seasons/${s}`}

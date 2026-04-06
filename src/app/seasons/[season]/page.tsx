@@ -1,29 +1,23 @@
 "use client";
 import Link from "next/link";
-import { ArrowLeft, Globe } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useParams } from "next/navigation";
 import { seasonName } from "@/lib/utils";
 import { useI18n } from "@/context/LanguageContext";
 
 export default function SeasonPage() {
-  const { t, toggle } = useI18n();
+  const { t } = useI18n();
   const params = useParams();
   const s = parseInt(params.season as string, 10);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <Link href="/seasons"
-          className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all"
-          style={{ color: "var(--text-muted)" }}>
-          <ArrowLeft className="w-4 h-4" />
-          {t.seasonDetail.back}
-        </Link>
-        <button onClick={toggle} className="lang-btn flex items-center gap-1.5">
-          <Globe className="w-3 h-3" />
-          {t.nav.toggleLang}
-        </button>
-      </div>
+      <Link href="/seasons"
+        className="inline-flex items-center gap-2 text-sm mb-6 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all"
+        style={{ color: "var(--text-muted)" }}>
+        <ArrowLeft className="w-4 h-4" />
+        {t.seasonDetail.back}
+      </Link>
       <h1 className="text-3xl font-black mb-1 animate-slide-up">{seasonName(s)}</h1>
       <p className="text-sm mb-8 animate-slide-up stagger-1" style={{ color: "var(--text-muted)" }}>
         {t.seasonDetail.subtitle.replace("{start}", String(s)).replace("{end}", String(s + 1))}

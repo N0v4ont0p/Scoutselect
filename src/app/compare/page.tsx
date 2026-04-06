@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus, X, Home, Globe } from "lucide-react";
+import { Plus, X, Home } from "lucide-react";
 import Link from "next/link";
 import { formatScore, getCurrentSeason } from "@/lib/utils";
 import { useI18n } from "@/context/LanguageContext";
@@ -51,7 +51,7 @@ async function fetchTeamMetrics(teamNum: number, season: number, eventCode: stri
 }
 
 export default function ComparePage() {
-  const { t, toggle } = useI18n();
+  const { t } = useI18n();
   const defaultSeason = getCurrentSeason();
   const [teamInputs, setTeamInputs] = useState<string[]>(["", ""]);
   const [season, setSeason] = useState(defaultSeason);
@@ -73,17 +73,13 @@ export default function ComparePage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center mb-8">
         <Link href="/"
           className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg transition-all duration-200 hover:bg-white/5"
           style={{ color: "var(--text-muted)" }}>
           <Home className="w-4 h-4" />
           {t.compare.back}
         </Link>
-        <button onClick={toggle} className="lang-btn flex items-center gap-1.5">
-          <Globe className="w-3 h-3" />
-          {t.nav.toggleLang}
-        </button>
       </div>
 
       <h1 className="text-3xl font-black mb-8 animate-slide-up">{t.compare.title}</h1>

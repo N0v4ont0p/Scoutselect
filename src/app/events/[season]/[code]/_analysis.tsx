@@ -246,9 +246,11 @@ export default function EventAnalysisContent() {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Back + header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <Link href="/" className="flex items-center gap-1.5 text-sm shrink-0"
+        <Link
+          href={searchParams.get("team") ? `/teams/${searchParams.get("team")}` : "/events"}
+          className="flex items-center gap-1.5 text-sm shrink-0"
           style={{ color: "var(--text-muted)" }}>
-          <ArrowLeft className="w-4 h-4" /> Home
+          <ArrowLeft className="w-4 h-4" /> {searchParams.get("team") ? `Team ${searchParams.get("team")}` : "Events"}
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-black truncate">
