@@ -15,8 +15,8 @@ export function detectEventPhase(matches: Match[]): EventPhase {
     ['ELIM', 'PLAYOFF', 'SEMIFINAL', 'FINAL', 'ELIMINATION'].includes(m.tournamentLevel)
   );
 
-  const qualsPlayed = quals.filter(m => m.played);
-  const playoffsPlayed = playoffs.filter(m => m.played);
+  const qualsPlayed = quals.filter(m => m.hasBeenPlayed);
+  const playoffsPlayed = playoffs.filter(m => m.hasBeenPlayed);
 
   if (quals.length === 0 && playoffs.length === 0) return 'QUALS_RUNNING';
   if (quals.length > 0 && qualsPlayed.length < quals.length) return 'QUALS_RUNNING';
@@ -109,7 +109,7 @@ export function computeOPR(teamList: number[], matches: Match[]): Map<number, OP
 
   const teamIndex = new Map(teamList.map((t, i) => [t, i]));
   const n = teamList.length;
-  const playedMatches = matches.filter(m => m.played && m.tournamentLevel === 'QUAL');
+  const playedMatches = matches.filter(m => m.hasBeenPlayed && m.tournamentLevel === 'QUAL');
   if (playedMatches.length === 0) return new Map();
 
   const AtA = Array.from({ length: n }, () => new Array(n).fill(0));
@@ -159,7 +159,7 @@ export function computeOPR(teamList: number[], matches: Match[]): Map<number, OP
 // ─── Team metrics ─────────────────────────────────────────────────────────────
 
 export function computeTeamMetrics(teamNumber: number, matches: Match[], teamName = ''): TeamMetrics {
-  const quals = matches.filter(m => m.tournamentLevel === 'QUAL' && m.played);
+  const quals = matches.filter(m => m.tournamentLevel === 'QUAL' && m.hasBeenPlayed);
   const teamMatches = quals.filter(m => m.teams.some(t => t.teamNumber === teamNumber));
 
   const autos: number[] = [];

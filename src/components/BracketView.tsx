@@ -29,7 +29,7 @@ function BracketMatch({ match }: BracketMatchProps) {
           </span>
         </div>
         <span className={`text-sm font-black tabular-nums ${redWon ? 'text-red-400' : 'text-muted-foreground'}`}>
-          {match.played ? redScore : '—'}
+          {match.hasBeenPlayed ? redScore : '—'}
         </span>
       </div>
 
@@ -42,7 +42,7 @@ function BracketMatch({ match }: BracketMatchProps) {
           </span>
         </div>
         <span className={`text-sm font-black tabular-nums ${blueWon ? 'text-blue-400' : 'text-muted-foreground'}`}>
-          {match.played ? blueScore : '—'}
+          {match.hasBeenPlayed ? blueScore : '—'}
         </span>
       </div>
     </div>

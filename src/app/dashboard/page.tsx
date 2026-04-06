@@ -329,7 +329,7 @@ function MatchHistoryView({ matches, teamNumber }: { matches: Match[]; teamNumbe
   const levelOrder: Record<string, number> = { QUAL: 0, SEMIFINAL: 1, FINAL: 2, ELIM: 1, PLAYOFF: 1, ELIMINATION: 1 };
 
   const teamMatches = matches
-    .filter(m => m.played && m.teams.some(t => t.teamNumber === teamNumber))
+    .filter(m => m.hasBeenPlayed && m.teams.some(t => t.teamNumber === teamNumber))
     .sort((a, b) => {
       const la = levelOrder[a.tournamentLevel] ?? 3;
       const lb = levelOrder[b.tournamentLevel] ?? 3;
@@ -514,7 +514,7 @@ function DashboardContent() {
         .filter((et: { stats?: { rank?: number } }) => et.stats)
         .map((et: {
           team: { number: number; name: string };
-          stats: { rank?: number; wins?: number; losses?: number; ties?: number; rp?: number; tbp?: number; qualMatchesPlayed?: number };
+          stats: { rank?: number; wins?: number; losses?: number; ties?: number; rp?: number; tb1?: number; qualMatchesPlayed?: number };
         }) => ({
           teamNumber: et.team.number,
           teamName: et.team.name,
@@ -523,7 +523,7 @@ function DashboardContent() {
           losses: et.stats?.losses ?? 0,
           ties: et.stats?.ties ?? 0,
           rp: et.stats?.rp,
-          tbp: et.stats?.tbp,
+          tb1: et.stats?.tb1,
           qualMatchesPlayed: et.stats?.qualMatchesPlayed ?? 0,
         }))
         .sort((a: Ranking, b: Ranking) => a.rank - b.rank);
