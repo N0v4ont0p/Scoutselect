@@ -69,10 +69,27 @@ describe('detectEventPhase', () => {
     expect(detectEventPhase(matches)).toBe('PLAYOFFS_RUNNING');
   });
 
+  it('returns PLAYOFFS_RUNNING when ELIM matches started (FTCScout API level)', () => {
+    const matches = [
+      makeMatch('1', 'QUAL', true, [{ teamNumber: 1, alliance: 'Red' }, { teamNumber: 2, alliance: 'Blue' }]),
+      makeMatch('2', 'ELIM', true, [{ teamNumber: 1, alliance: 'Red' }, { teamNumber: 2, alliance: 'Blue' }]),
+      makeMatch('3', 'ELIM', false, [{ teamNumber: 3, alliance: 'Red' }, { teamNumber: 4, alliance: 'Blue' }]),
+    ];
+    expect(detectEventPhase(matches)).toBe('PLAYOFFS_RUNNING');
+  });
+
   it('returns EVENT_COMPLETE when all playoffs done', () => {
     const matches = [
       makeMatch('1', 'QUAL', true, [{ teamNumber: 1, alliance: 'Red' }, { teamNumber: 2, alliance: 'Blue' }]),
       makeMatch('2', 'PLAYOFF', true, [{ teamNumber: 1, alliance: 'Red' }, { teamNumber: 2, alliance: 'Blue' }]),
+    ];
+    expect(detectEventPhase(matches)).toBe('EVENT_COMPLETE');
+  });
+
+  it('returns EVENT_COMPLETE when all ELIM matches done (FTCScout API level)', () => {
+    const matches = [
+      makeMatch('1', 'QUAL', true, [{ teamNumber: 1, alliance: 'Red' }, { teamNumber: 2, alliance: 'Blue' }]),
+      makeMatch('2', 'ELIM', true, [{ teamNumber: 1, alliance: 'Red' }, { teamNumber: 2, alliance: 'Blue' }]),
     ];
     expect(detectEventPhase(matches)).toBe('EVENT_COMPLETE');
   });

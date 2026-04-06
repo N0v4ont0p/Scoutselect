@@ -55,7 +55,7 @@ interface BracketViewProps {
 
 export function BracketView({ matches }: BracketViewProps) {
   const playoffs = matches.filter(m =>
-    ['PLAYOFF', 'SEMIFINAL', 'FINAL'].includes(m.tournamentLevel)
+    ['ELIM', 'PLAYOFF', 'SEMIFINAL', 'FINAL', 'ELIMINATION'].includes(m.tournamentLevel)
   );
 
   if (playoffs.length === 0) {
@@ -68,15 +68,16 @@ export function BracketView({ matches }: BracketViewProps) {
     );
   }
 
-  // Group by tournament level
-  const semis = playoffs.filter(m => ['SEMIFINAL', 'PLAYOFF'].includes(m.tournamentLevel));
+  // Group by tournament level: ELIM covers all elimination rounds; SEMIFINAL/PLAYOFF are
+  // alternative API level names for semi-final rounds; FINAL is the championship match.
+  const semis = playoffs.filter(m => ['ELIM', 'SEMIFINAL', 'PLAYOFF', 'ELIMINATION'].includes(m.tournamentLevel));
   const finals = playoffs.filter(m => m.tournamentLevel === 'FINAL');
 
   return (
     <div className="space-y-4 animate-fade-in">
       {semis.length > 0 && (
         <div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Semi-finals</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Eliminations</p>
           <div className="grid grid-cols-1 gap-3">
             {semis.map(m => <BracketMatch key={m.id} match={m} />)}
           </div>

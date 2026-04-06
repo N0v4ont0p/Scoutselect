@@ -78,7 +78,7 @@ export default function Home() {
                 value={teamInput}
                 onChange={e => setTeamInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                className="flex-1 px-4 py-3 rounded-xl bg-white/6 border border-white/12 text-white text-xl font-bold placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 text-slate-100 text-xl font-bold placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
               <button
                 onClick={handleSubmit}
@@ -127,7 +127,7 @@ export default function Home() {
                   placeholder="Type team name…"
                   value={nameQuery}
                   onChange={e => setNameQuery(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white/6 border border-white/12 text-white placeholder-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 />
                 {searching && <p className="text-xs text-muted-foreground animate-pulse">Searching…</p>}
                 {searchResults.map(t => (
