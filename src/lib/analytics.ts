@@ -340,3 +340,327 @@ export function detectPhase(
   }
   return "upcoming";
 }
+
+// ─── Alliance Role Determination ──────────────────────────────────────────────
+
+export interface AllianceRole {
+  role: "captain" | "picked" | "borderline";
+  rank: number;
+  numAlliances: number;
+}
+
+export function estimateNumAlliances(totalTeams: number): number {
+  if (totalTeams <= 8) return 2;
+  if (totalTeams <= 12) return 3;
+  if (totalTeams <= 20) return 4;
+  if (totalTeams <= 32) return 6;
+  return 8;
+}
+
+export function determineRole(rank: number, totalTeams: number): AllianceRole {
+  const numAlliances = estimateNumAlliances(totalTeams);
+  if (rank <= numAlliances) return { role: "captain", rank, numAlliances };
+  if (rank <= numAlliances + 2) return { role: "borderline", rank, numAlliances };
+  return { role: "picked", rank, numAlliances };
+}
+
+// ─── Alliance Strength (pairwise synergy across all team pairs) ────────────────
+
+export function computeAllianceStrength(teams: TeamMetrics[]): number {
+  if (!teams.length) return 0;
+  const totalOPR = teams.reduce((s, t) => s + t.opr, 0);
+  if (teams.length === 1) return totalOPR;
+  let bonus = 0;
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      const s = computeSynergy(teams[i], teams[j]);
+      bonus += s.complementarity - s.overlapPenalty;
+    }
+  }
+  const pairs = (teams.length * (teams.length - 1)) / 2;
+  return totalOPR + (bonus / pairs) * 0.4;
+}
+
+// ─── Alliance Pick Optimization (for captains) ────────────────────────────────
+
+export interface PickOption {
+  teamNumber: number;
+  metrics: TeamMetrics;
+  synergy: SynergyResult;
+  /** Projected 3-team alliance strength (with best available pick 2) */
+  allianceStrength: number;
+  bestPick2: { teamNumber: number; metrics: TeamMetrics; allianceStrength: number } | null;
+  reasons: string[];
+  label: string;
+}
+
+export function optimizePick1(
+  captainMetrics: TeamMetrics,
+  availableMetrics: TeamMetrics[],
+  topN = 5
+): PickOption[] {
+  const others = availableMetrics.filter((m) => m.teamNumber !== captainMetrics.teamNumber);
+  return others
+    .map((pick1) => {
+      const synergy1 = computeSynergy(captainMetrics, pick1);
+      const pick2Pool = others.filter((m) => m.teamNumber !== pick1.teamNumber);
+      let bestPick2: PickOption["bestPick2"] = null;
+      let bestStrength = computeAllianceStrength([captainMetrics, pick1]);
+      for (const pick2 of pick2Pool) {
+        const s = computeAllianceStrength([captainMetrics, pick1, pick2]);
+        if (s > bestStrength) {
+          bestStrength = s;
+          bestPick2 = { teamNumber: pick2.teamNumber, metrics: pick2, allianceStrength: s };
+        }
+      }
+      const reasons: string[] = [];
+      if (pick1.opr > captainMetrics.opr * 0.75)
+        reasons.push(`High OPR: ${pick1.opr.toFixed(0)}`);
+      if (synergy1.complementarity > 25)
+        reasons.push(`Fills scoring gaps (+${synergy1.complementarity.toFixed(0)} syn)`);
+      if (pick1.reliability > 75)
+        reasons.push(`Reliable: ${pick1.reliability.toFixed(0)}/100`);
+      if (pick1.trend > 1) reasons.push(`Trending up`);
+      if (pick1.avgAuto > 20) reasons.push(`Auto specialist: ${pick1.avgAuto.toFixed(0)} avg`);
+      if (pick1.avgEndgame > 15) reasons.push(`Strong endgame: ${pick1.avgEndgame.toFixed(0)} avg`);
+      if (!reasons.length) reasons.push(`Avg total: ${pick1.avgTotal.toFixed(0)} pts`);
+      const label =
+        pick1.trend > 2 ? "📈 Trending Up" :
+        pick1.reliability > 80 ? "🛡 Reliable" :
+        pick1.avgTotal > 120 ? "🚀 High Ceiling" : "⚖️ Balanced";
+      return { teamNumber: pick1.teamNumber, metrics: pick1, synergy: synergy1, allianceStrength: bestStrength, bestPick2, reasons, label };
+    })
+    .sort((a, b) => b.allianceStrength - a.allianceStrength)
+    .slice(0, topN);
+}
+
+// ─── Pitch Strategy (for teams being picked) ──────────────────────────────────
+
+export interface CaptainApproach {
+  captainNumber: number;
+  captainMetrics: TeamMetrics;
+  synergyWithMe: SynergyResult;
+  /** How much stronger the captain's alliance would be with me vs without me */
+  improvementDelta: number;
+  allianceStrengthWithMe: number;
+  allianceStrengthWithoutMe: number;
+  pitchPoints: string[];
+  redFlags: string[];
+  pickLikelihood: "high" | "medium" | "low";
+}
+
+export function rankCaptainsToApproach(
+  myMetrics: TeamMetrics,
+  captainMetrics: TeamMetrics[],
+  allMetrics: TeamMetrics[]
+): CaptainApproach[] {
+  return captainMetrics
+    .filter((c) => c.teamNumber !== myMetrics.teamNumber)
+    .map((captain) => {
+      const synergyWithMe = computeSynergy(captain, myMetrics);
+      const pool = allMetrics.filter(
+        (m) => m.teamNumber !== captain.teamNumber && m.teamNumber !== myMetrics.teamNumber
+      );
+      // Best 2 picks WITHOUT me
+      const sortedPool = [...pool].sort((a, b) => {
+        const sa = computeSynergy(captain, a);
+        const sb = computeSynergy(captain, b);
+        return b.opr + sb.complementarity - (a.opr + sa.complementarity);
+      });
+      const p1w = sortedPool[0];
+      const p2w = p1w
+        ? [...pool]
+            .filter((m) => m.teamNumber !== p1w.teamNumber)
+            .sort((a, b) =>
+              computeAllianceStrength([captain, p1w, b]) -
+              computeAllianceStrength([captain, p1w, a])
+            )[0]
+        : undefined;
+      const strengthWithout = p2w
+        ? computeAllianceStrength([captain, p1w, p2w])
+        : p1w
+        ? computeAllianceStrength([captain, p1w])
+        : captain.opr;
+      // Best pick 2 WITH me
+      const p2with = [...pool].sort(
+        (a, b) =>
+          computeAllianceStrength([captain, myMetrics, b]) -
+          computeAllianceStrength([captain, myMetrics, a])
+      )[0];
+      const strengthWith = p2with
+        ? computeAllianceStrength([captain, myMetrics, p2with])
+        : computeAllianceStrength([captain, myMetrics]);
+      const improvementDelta = strengthWith - strengthWithout;
+      const pitchPoints: string[] = [];
+      if (synergyWithMe.complementarity > 25)
+        pitchPoints.push(`Fills your scoring gap — ${synergyWithMe.complementarity.toFixed(0)} synergy pts`);
+      if (myMetrics.avgAuto > captain.avgAuto * 0.75)
+        pitchPoints.push(`Strong autonomous: ${myMetrics.avgAuto.toFixed(0)} avg pts`);
+      if (myMetrics.avgEndgame > 15)
+        pitchPoints.push(`Reliable endgame: ${myMetrics.avgEndgame.toFixed(0)} avg pts`);
+      if (myMetrics.reliability > 75)
+        pitchPoints.push(`Reliability score: ${myMetrics.reliability.toFixed(0)}/100`);
+      if (myMetrics.trend > 1)
+        pitchPoints.push(`Improving every match — positive trend`);
+      if (improvementDelta > 5)
+        pitchPoints.push(`Adds +${improvementDelta.toFixed(0)} projected alliance strength`);
+      if (!pitchPoints.length)
+        pitchPoints.push(`OPR contribution: ${myMetrics.opr.toFixed(0)}`);
+      const redFlags: string[] = [];
+      if (myMetrics.matchCount < 5) redFlags.push(`Small sample (${myMetrics.matchCount} matches)`);
+      if (myMetrics.consistency < 50) redFlags.push(`High variance performer`);
+      if (myMetrics.avgEndgame < 5) redFlags.push(`Weak endgame contribution`);
+      const teamsAboveMe = pool.filter((m) => m.opr > myMetrics.opr).length;
+      const pickLikelihood: CaptainApproach["pickLikelihood"] =
+        teamsAboveMe <= 2 ? "high" : teamsAboveMe <= 5 ? "medium" : "low";
+      return {
+        captainNumber: captain.teamNumber,
+        captainMetrics: captain,
+        synergyWithMe,
+        improvementDelta,
+        allianceStrengthWithMe: strengthWith,
+        allianceStrengthWithoutMe: strengthWithout,
+        pitchPoints,
+        redFlags,
+        pickLikelihood,
+      };
+    })
+    .sort((a, b) => b.improvementDelta - a.improvementDelta);
+}
+
+// ─── Snake Draft Simulation ────────────────────────────────────────────────────
+// Models the FTC 2-round snake draft.  Round 1: captains pick in rank order.
+// Round 2: reversed.  This lets us tell a captain exactly which targets will
+// realistically still be on the board when their turn arrives.
+
+function simulateGreedyPick(
+  captain: TeamMetrics,
+  captainAlliances: Map<number, TeamMetrics[]>,
+  available: Set<number>,
+  pool: TeamMetrics[]
+): void {
+  const alliance = captainAlliances.get(captain.teamNumber) ?? [captain];
+  let bestTeam: number | null = null;
+  let bestStrength = -Infinity;
+  for (const t of available) {
+    const tm = pool.find((m) => m.teamNumber === t);
+    if (!tm) continue;
+    const s = computeAllianceStrength([...alliance, tm]);
+    if (s > bestStrength) {
+      bestStrength = s;
+      bestTeam = t;
+    }
+  }
+  if (bestTeam !== null) {
+    available.delete(bestTeam);
+    const tm = pool.find((m) => m.teamNumber === bestTeam);
+    if (tm) captainAlliances.get(captain.teamNumber)?.push(tm);
+  }
+}
+
+/**
+ * Returns the set of non-captain teams still available when:
+ *  - `pick1Available`: it's your first pick (round 1, slot `myCaptainRank`)
+ *  - `pick2Available`: it's your second pick (round 2, reversed slot)
+ *
+ * Assumes every other captain picks greedily to maximise their alliance strength.
+ */
+export function simulateDraftAvailability(
+  myCaptainRank: number,         // 1-indexed
+  captainMetricsList: TeamMetrics[], // all captains in rank order (index 0 = rank 1)
+  allAvailableMetrics: TeamMetrics[] // non-captain teams
+): { pick1Available: Set<number>; pick2Available: Set<number> } {
+  const n = captainMetricsList.length;
+  const myIdx = myCaptainRank - 1; // 0-indexed
+
+  const available = new Set(allAvailableMetrics.map((m) => m.teamNumber));
+  const captainAlliances = new Map(
+    captainMetricsList.map((c) => [c.teamNumber, [c] as TeamMetrics[]])
+  );
+
+  // Round 1 — captains 0..myIdx-1 pick before me
+  for (let i = 0; i < myIdx; i++) {
+    simulateGreedyPick(captainMetricsList[i], captainAlliances, available, allAvailableMetrics);
+  }
+  const pick1Available = new Set(available);
+
+  // Simulate my own pick (choose best available to leave realistic round-2 pool)
+  simulateGreedyPick(captainMetricsList[myIdx], captainAlliances, available, allAvailableMetrics);
+
+  // Round 1 continues — captains myIdx+1..n-1 pick
+  for (let i = myIdx + 1; i < n; i++) {
+    simulateGreedyPick(captainMetricsList[i], captainAlliances, available, allAvailableMetrics);
+  }
+
+  // Round 2 — reversed order; captains n-1..myIdx+1 pick before me
+  for (let i = n - 1; i > myIdx; i--) {
+    simulateGreedyPick(captainMetricsList[i], captainAlliances, available, allAvailableMetrics);
+  }
+  const pick2Available = new Set(available);
+
+  return { pick1Available, pick2Available };
+}
+
+/** Enhanced pick list that annotates each option with draft-availability. */
+export interface DraftAwarePickOption extends PickOption {
+  availableForPick1: boolean;
+  availableForPick2: boolean;
+  availabilityTag: string;
+}
+
+export function optimizePicksWithDraft(
+  captainMetrics: TeamMetrics,
+  myCaptainRank: number,
+  allCaptainMetrics: TeamMetrics[],
+  availableMetrics: TeamMetrics[],
+  topN = 5
+): DraftAwarePickOption[] {
+  const { pick1Available, pick2Available } = simulateDraftAvailability(
+    myCaptainRank,
+    allCaptainMetrics,
+    availableMetrics
+  );
+  const raw = optimizePick1(captainMetrics, availableMetrics, topN + 10);
+  return raw
+    .map((p) => {
+      const a1 = pick1Available.has(p.teamNumber);
+      const a2 = pick2Available.has(p.teamNumber);
+      const availabilityTag = a1 ? "✓ Available for Pick 1" : a2 ? "⚠ Available for Pick 2 only" : "✗ Likely gone";
+      return { ...p, availableForPick1: a1, availableForPick2: a2, availabilityTag };
+    })
+    .sort((a, b) => {
+      // First: only show actually-available picks at the top
+      const aScore = a.availableForPick1 ? 2 : a.availableForPick2 ? 1 : 0;
+      const bScore = b.availableForPick1 ? 2 : b.availableForPick2 ? 1 : 0;
+      if (bScore !== aScore) return bScore - aScore;
+      return b.allianceStrength - a.allianceStrength;
+    })
+    .slice(0, topN);
+}
+
+// ─── Win-probability matchups ──────────────────────────────────────────────────
+
+export interface AllianceMatchup {
+  opponentCaptain: number;
+  opponentTeams: number[];
+  winProbability: number;  // probability MY alliance wins
+  strengthDelta: number;   // my projected strength minus theirs
+}
+
+/** For a completed (or projected) alliance, compute win probability against each other alliance. */
+export function computeMatchups(
+  myAlliance: TeamMetrics[],
+  opponentAlliances: { captain: number; teams: TeamMetrics[] }[],
+  runs = 2000
+): AllianceMatchup[] {
+  const myStrength = computeAllianceStrength(myAlliance);
+  return opponentAlliances.map((opp) => {
+    const result = monteCarlo(myAlliance, opp.teams, runs);
+    return {
+      opponentCaptain: opp.captain,
+      opponentTeams: opp.teams.map((t) => t.teamNumber),
+      winProbability: result.redWin,
+      strengthDelta: myStrength - computeAllianceStrength(opp.teams),
+    };
+  });
+}
