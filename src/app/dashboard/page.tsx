@@ -334,7 +334,7 @@ function DashboardContent() {
 
   const [team, setTeam] = useState<Team | null>(null);
   const [events, setEvents] = useState<TeamEvent[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [, setMatches] = useState<Match[]>([]);
   const [selectedEvent, setSelectedEvent] = useState('');
   const [showEventPicker, setShowEventPicker] = useState(false);
   const [loading, setLoading] = useState(true);
