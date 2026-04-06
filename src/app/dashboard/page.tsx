@@ -30,7 +30,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const teamNumber = parseInt(searchParams.get('team') ?? '0');
-  const season = parseInt(searchParams.get('season') ?? '2024');
+  const season = parseInt(searchParams.get('season') ?? '2025');
   const eventCode = searchParams.get('event') ?? '';
 
   const [team, setTeam] = useState<Team | null>(null);

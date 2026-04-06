@@ -8,8 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { Search, Trophy, Target, TrendingUp, Zap } from 'lucide-react';
 import type { TeamSearchResult } from '@/lib/ftcscout';
 
-const CURRENT_SEASON = 2024;
-const SEASONS = [2024, 2023, 2022, 2021];
+const CURRENT_SEASON = 2025;
+const SEASONS = [2025, 2024, 2023, 2022, 2021];
 
 export default function Home() {
   const router = useRouter();
