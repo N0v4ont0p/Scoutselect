@@ -1046,7 +1046,7 @@ function UpcomingPreviewSection({
                       <div className="text-xs font-black" style={{ color: TIER_CONFIG[myTier].color }}>
                         {myStrength}<span className="font-normal text-[10px]" style={{ color: "var(--text-muted)" }}>/100</span>
                       </div>
-                      {myPercentile !== null && (
+                      {myPercentile !== null && myPercentile > 0 && (
                         <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                           Top {100 - myPercentile}%
                         </div>
