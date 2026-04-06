@@ -124,7 +124,7 @@ function statsFragment(season: number): string {
 
 // ---------- Preview stats fragment (minimal, for batch queries) ----------
 function previewStatsFragment(season: number): string {
-  const body = "wins losses ties qualMatchesPlayed max { totalPoints }";
+  const body = "wins losses ties qualMatchesPlayed max { totalPoints } avg { totalPoints }";
   if (season === 2020) {
     return `... on TeamEventStats2020Trad { ${body} }\n... on TeamEventStats2020Remote { ${body} }`;
   }
@@ -145,6 +145,8 @@ export interface PreviewTeam {
   eventsPlayed: number;
   highScore: number;
   winRate: number;
+  /** Weighted average total score across all finished events this season. */
+  avgScore: number;
 }
 
 /** Max teams per batch GraphQL alias query — keeps query size reasonable for the FTCScout API. */
@@ -185,6 +187,7 @@ export async function getTeamsBatchSeasonStats(
       ties?: number;
       qualMatchesPlayed?: number;
       max?: { totalPoints: number };
+      avg?: { totalPoints: number };
     }
     interface RawTeam {
       number: number;
@@ -207,6 +210,12 @@ export async function getTeamsBatchSeasonStats(
         const ties = done.reduce((s, e) => s + (e.stats?.ties ?? 0), 0);
         const played = done.reduce((s, e) => s + (e.stats?.qualMatchesPlayed ?? 0), 0);
         const highScore = Math.max(0, ...done.map((e) => e.stats?.max?.totalPoints ?? 0));
+        // Weighted average total score across all finished events
+        const totalWeighted = done.reduce(
+          (s, e) => s + (e.stats?.avg?.totalPoints ?? 0) * (e.stats?.qualMatchesPlayed ?? 0),
+          0
+        );
+        const avgScore = played > 0 ? totalWeighted / played : 0;
         results.push({
           teamNumber: n,
           name: team.name,
@@ -217,6 +226,7 @@ export async function getTeamsBatchSeasonStats(
           eventsPlayed: done.length,
           highScore,
           winRate: played > 0 ? wins / played : 0,
+          avgScore,
         });
       }
     } catch {
@@ -232,6 +242,7 @@ export async function getTeamsBatchSeasonStats(
           eventsPlayed: 0,
           highScore: 0,
           winRate: 0,
+          avgScore: 0,
         });
       }
     }
