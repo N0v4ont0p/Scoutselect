@@ -883,16 +883,27 @@ function FieldOverviewSection({
 
 type ThreatTier = "elite" | "strong" | "solid" | "unknown";
 
-// Tier thresholds: win rate and peak score cutoffs for classifying teams
-const ELITE_WIN_RATE = 0.7;
-const ELITE_SCORE    = 200;
-const STRONG_WIN_RATE = 0.5;
-const STRONG_SCORE   = 140;
+/**
+ * Composite strength score (0–100) that weighs four dimensions:
+ *  • Win rate      40 pts  — absolute competitive record
+ *  • Peak score    30 pts  — relative to field high score
+ *  • Avg score     20 pts  — relative to field best average
+ *  • Experience    10 pts  — season events played (caps at 3)
+ */
+function strengthScore(team: PreviewTeam, topScore: number, topAvg: number): number {
+  if (team.matchesPlayed === 0) return 0;
+  const winComponent  = team.winRate * 40;
+  const peakComponent = topScore > 1 ? (team.highScore / topScore) * 30 : 0;
+  const avgComponent  = topAvg > 1 ? (team.avgScore / topAvg) * 20 : 0;
+  const expComponent  = Math.min(team.eventsPlayed / 3, 1) * 10;
+  return Math.round(winComponent + peakComponent + avgComponent + expComponent);
+}
 
-function threatTier(team: PreviewTeam): ThreatTier {
+function threatTier(team: PreviewTeam, topScore: number, topAvg: number): ThreatTier {
   if (team.matchesPlayed === 0) return "unknown";
-  if (team.winRate >= ELITE_WIN_RATE || team.highScore >= ELITE_SCORE) return "elite";
-  if (team.winRate >= STRONG_WIN_RATE || team.highScore >= STRONG_SCORE) return "strong";
+  const s = strengthScore(team, topScore, topAvg);
+  if (s >= 65) return "elite";
+  if (s >= 40) return "strong";
   return "solid";
 }
 
@@ -914,19 +925,33 @@ function UpcomingPreviewSection({
 }) {
   const [tab, setTab] = useState<"threats" | "table">("threats");
 
+  const topScore = Math.max(...teams.map((t) => t.highScore), 1);
+  const topAvg   = Math.max(...teams.map((t) => t.avgScore), 1);
+
+  const activeTeams = teams.filter((t) => t.matchesPlayed > 0);
+  const fieldAvgScore = activeTeams.length > 0
+    ? activeTeams.reduce((s, t) => s + t.avgScore, 0) / activeTeams.length
+    : 0;
+  const fieldAvgWinRate = activeTeams.length > 0
+    ? activeTeams.reduce((s, t) => s + t.winRate, 0) / activeTeams.length
+    : 0;
+
   const sorted = [...teams].sort((a, b) => {
     if (a.matchesPlayed === 0 && b.matchesPlayed === 0) return 0;
     if (a.matchesPlayed === 0) return 1;
     if (b.matchesPlayed === 0) return -1;
-    return b.winRate - a.winRate || b.highScore - a.highScore;
+    return strengthScore(b, topScore, topAvg) - strengthScore(a, topScore, topAvg);
   });
 
-  const elites = sorted.filter((t) => threatTier(t) === "elite");
+  const elites  = sorted.filter((t) => threatTier(t, topScore, topAvg) === "elite");
   const threats = sorted.filter((t) => t.teamNumber !== myTeam).slice(0, 6);
   const myEntry = teams.find((t) => t.teamNumber === myTeam);
-  const myTier = myEntry ? threatTier(myEntry) : null;
-
-  const topScore = Math.max(...teams.map((t) => t.highScore), 1);
+  const myTier  = myEntry ? threatTier(myEntry, topScore, topAvg) : null;
+  const myStrength = myEntry ? strengthScore(myEntry, topScore, topAvg) : 0;
+  // Percentile: how many teams score lower than myStrength
+  const myPercentile = myEntry && activeTeams.length > 0
+    ? Math.round((activeTeams.filter((t) => strengthScore(t, topScore, topAvg) < myStrength).length / activeTeams.length) * 100)
+    : null;
 
   return (
     <section className="space-y-4 animate-fade-in">
@@ -972,12 +997,13 @@ function UpcomingPreviewSection({
         </div>
       ) : tab === "threats" ? (
         <div className="space-y-4">
-          {/* Summary stats row */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Summary stats row — 4 cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Registered Teams", value: teams.length, icon: <Users className="w-4 h-4" /> },
-              { label: "Top Season Score", value: topScore > 0 ? topScore : "—", icon: <Trophy className="w-4 h-4" /> },
-              { label: "Elite Threats", value: elites.length, icon: <Flame className="w-4 h-4" /> },
+              { label: "Registered",  value: teams.length,                                          icon: <Users className="w-4 h-4" /> },
+              { label: "Top Score",   value: topScore > 1 ? topScore : "—",                        icon: <Trophy className="w-4 h-4" /> },
+              { label: "Field Avg",   value: fieldAvgScore > 0 ? Math.round(fieldAvgScore) : "—",  icon: <Activity className="w-4 h-4" /> },
+              { label: "Elite Threats", value: elites.length,                                       icon: <Flame className="w-4 h-4" /> },
             ].map((s) => (
               <div key={s.label} className="glass rounded-xl p-3 text-center" style={{ border: "1px solid var(--border)" }}>
                 <div className="flex justify-center mb-1" style={{ color: "var(--accent)" }}>{s.icon}</div>
@@ -989,23 +1015,72 @@ function UpcomingPreviewSection({
 
           {/* Your team banner */}
           {myEntry && myTier && (
-            <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+            <div className="rounded-xl px-4 py-3"
               style={{ background: TIER_CONFIG[myTier].bg, border: `1px solid ${TIER_CONFIG[myTier].border}` }}>
-              <div>
-                <div className="text-xs font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>Your Team</div>
-                <div className="font-black text-base" style={{ color: TIER_CONFIG[myTier].color }}>
-                  #{myEntry.teamNumber} · {myEntry.name}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>Your Team</div>
+                  <div className="font-black text-base" style={{ color: TIER_CONFIG[myTier].color }}>
+                    #{myEntry.teamNumber} · {myEntry.name}
+                  </div>
+                  {myEntry.matchesPlayed > 0 ? (
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                      <span>{myEntry.wins}W-{myEntry.losses}L{myEntry.ties > 0 ? `-${myEntry.ties}T` : ""}</span>
+                      <span>·</span>
+                      <span>{(myEntry.winRate * 100).toFixed(0)}% win rate</span>
+                      {myEntry.avgScore > 0 && <><span>·</span><span>Avg {myEntry.avgScore.toFixed(0)} pts</span></>}
+                      {myEntry.highScore > 0 && <><span>·</span><span>Peak {myEntry.highScore}</span></>}
+                      {myEntry.eventsPlayed > 0 && <><span>·</span><span>{myEntry.eventsPlayed} event{myEntry.eventsPlayed !== 1 ? "s" : ""}</span></>}
+                    </div>
+                  ) : (
+                    <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>No season data yet — this will be your first event</div>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs px-2 py-0.5 rounded-full font-bold mb-1"
+                    style={{ background: TIER_CONFIG[myTier].bg, color: TIER_CONFIG[myTier].color, border: `1px solid ${TIER_CONFIG[myTier].border}` }}>
+                    {TIER_CONFIG[myTier].label}
+                  </div>
+                  {myEntry.matchesPlayed > 0 && (
+                    <>
+                      <div className="text-xs font-black" style={{ color: TIER_CONFIG[myTier].color }}>
+                        {myStrength}<span className="font-normal text-[10px]" style={{ color: "var(--text-muted)" }}>/100</span>
+                      </div>
+                      {myPercentile !== null && (
+                        <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                          Top {100 - myPercentile}%
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-xs px-2 py-0.5 rounded-full font-bold"
-                  style={{ background: TIER_CONFIG[myTier].bg, color: TIER_CONFIG[myTier].color, border: `1px solid ${TIER_CONFIG[myTier].border}` }}>
-                  {TIER_CONFIG[myTier].label}
+              {myEntry.matchesPlayed > 0 && (
+                <div className="mt-2.5 space-y-1">
+                  {[
+                    { label: "Win Rate", pct: myEntry.winRate * 100, refPct: fieldAvgWinRate * 100, color: TIER_CONFIG[myTier].color },
+                    { label: "Avg Score", pct: topAvg > 1 ? (myEntry.avgScore / topAvg) * 100 : 0, refPct: topAvg > 1 ? (fieldAvgScore / topAvg) * 100 : 0, color: "var(--accent-2)" },
+                    { label: "Peak Score", pct: topScore > 1 ? (myEntry.highScore / topScore) * 100 : 0, refPct: 0, color: "var(--accent)" },
+                  ].map((bar) => (
+                    <div key={bar.label}>
+                      <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
+                        <span>{bar.label}</span>
+                        <span className="font-mono">{bar.pct.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden relative" style={{ background: "var(--surface-2)" }}>
+                        <div className="h-1.5 rounded-full transition-all duration-700"
+                          style={{ width: `${Math.min(bar.pct, 100)}%`, background: bar.color }} />
+                        {bar.refPct > 0 && (
+                          <div className="absolute top-0 h-1.5 w-px opacity-60" style={{ left: `${Math.min(bar.refPct, 100)}%`, background: "white" }} />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    White marker = field average
+                  </div>
                 </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {myEntry.matchesPlayed > 0 ? `${myEntry.wins}W-${myEntry.losses}L · ${(myEntry.winRate * 100).toFixed(0)}% win rate` : "No season data yet"}
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -1017,9 +1092,11 @@ function UpcomingPreviewSection({
             </p>
             <div className="space-y-2.5">
               {threats.map((team, i) => {
-                const tier = threatTier(team);
+                const tier = threatTier(team, topScore, topAvg);
                 const cfg = TIER_CONFIG[tier];
+                const score = strengthScore(team, topScore, topAvg);
                 const winPct = team.matchesPlayed > 0 ? (team.winRate * 100).toFixed(0) : null;
+                const aboveAvg = team.avgScore > fieldAvgScore;
                 return (
                   <div key={team.teamNumber}
                     className="glass rounded-xl px-4 py-3 flex items-center gap-4"
@@ -1042,47 +1119,63 @@ function UpcomingPreviewSection({
                           style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
                       </div>
                       {team.matchesPlayed > 0 ? (
-                        <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
                           <span>{team.wins}W-{team.losses}L{team.ties > 0 ? `-${team.ties}T` : ""}</span>
                           <span>·</span>
                           <span className="font-semibold" style={{ color: winPct && parseInt(winPct) >= 60 ? "var(--success)" : "var(--text-muted)" }}>
-                            {winPct}% win rate
+                            {winPct}% WR
                           </span>
+                          {team.avgScore > 0 && <>
+                            <span>·</span>
+                            <span>Avg: <span className="font-mono font-bold" style={{ color: aboveAvg ? "var(--warning)" : "inherit" }}>{team.avgScore.toFixed(0)}</span></span>
+                          </>}
                           {team.highScore > 0 && <>
                             <span>·</span>
                             <span>Peak: <span className="font-mono font-bold text-white">{team.highScore}</span></span>
                           </>}
                           {team.eventsPlayed > 0 && <>
                             <span>·</span>
-                            <span>{team.eventsPlayed} event{team.eventsPlayed > 1 ? "s" : ""}</span>
+                            <span>{team.eventsPlayed} evt{team.eventsPlayed > 1 ? "s" : ""}</span>
                           </>}
                         </div>
                       ) : (
                         <span className="text-xs" style={{ color: "var(--text-muted)" }}>No season data yet — fresh team or first event</span>
                       )}
                     </div>
-                    {/* Win rate bar */}
+                    {/* Composite strength bars */}
                     {team.matchesPlayed > 0 && (
-                      <div className="w-24 shrink-0">
-                        <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
-                          <span>Win%</span>
-                          <span className="font-mono">{winPct}%</span>
+                      <div className="w-28 shrink-0 space-y-1.5">
+                        <div>
+                          <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
+                            <span>Strength</span>
+                            <span className="font-mono font-bold" style={{ color: cfg.color }}>{score}</span>
+                          </div>
+                          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                            <div className="h-1.5 rounded-full transition-all duration-700"
+                              style={{ width: `${score}%`, background: cfg.color }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
-                          <div className="h-1.5 rounded-full transition-all duration-700"
-                            style={{ width: `${team.winRate * 100}%`, background: cfg.color }} />
+                        <div>
+                          <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
+                            <span>Win%</span>
+                            <span className="font-mono">{winPct}%</span>
+                          </div>
+                          <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                            <div className="h-1 rounded-full transition-all duration-700"
+                              style={{ width: `${team.winRate * 100}%`, background: "var(--success)" }} />
+                          </div>
                         </div>
-                        {team.highScore > 0 && (
-                          <>
-                            <div className="flex justify-between text-[10px] mt-1.5 mb-0.5" style={{ color: "var(--text-muted)" }}>
-                              <span>Peak</span>
-                              <span className="font-mono">{team.highScore}</span>
+                        {team.avgScore > 0 && (
+                          <div>
+                            <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
+                              <span>Avg</span>
+                              <span className="font-mono">{team.avgScore.toFixed(0)}</span>
                             </div>
-                            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
-                              <div className="h-1.5 rounded-full transition-all duration-700"
-                                style={{ width: `${(team.highScore / topScore) * 100}%`, background: "var(--accent-2)" }} />
+                            <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                              <div className="h-1 rounded-full transition-all duration-700"
+                                style={{ width: `${topAvg > 1 ? (team.avgScore / topAvg) * 100 : 0}%`, background: "var(--accent-2)" }} />
                             </div>
-                          </>
+                          </div>
                         )}
                       </div>
                     )}
@@ -1092,37 +1185,47 @@ function UpcomingPreviewSection({
             </div>
           </div>
 
-          {/* Insights card */}
+          {/* Scouting Alerts */}
           {elites.length > 0 && (
             <div className="rounded-xl px-4 py-3 space-y-1.5"
               style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}>
               <p className="text-xs font-bold" style={{ color: "#ef4444" }}>⚠ Scouting Alerts</p>
-              {elites.slice(0, 3).map((t) => (
-                <p key={t.teamNumber} className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  <span className="font-semibold text-white">#{t.teamNumber}</span> — {t.wins}W/{t.losses}L this season
-                  {t.highScore > 0 ? `, peaked at ${t.highScore} pts` : ""}.
-                  {" "}Approach with a high-efficiency alliance strategy.
-                </p>
-              ))}
+              {elites.slice(0, 3).map((t) => {
+                const s = strengthScore(t, topScore, topAvg);
+                const avgAbove = t.avgScore > 0 && fieldAvgScore > 0
+                  ? ((t.avgScore - fieldAvgScore) / fieldAvgScore * 100).toFixed(0)
+                  : null;
+                return (
+                  <p key={t.teamNumber} className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span className="font-semibold text-white">#{t.teamNumber}</span>
+                    {" "}— Strength <span className="font-bold text-white">{s}/100</span>
+                    {" · "}{t.wins}W/{t.losses}L ({(t.winRate * 100).toFixed(0)}% WR)
+                    {t.avgScore > 0 && <>, avg <span className="font-mono text-white">{t.avgScore.toFixed(0)}</span> pts
+                      {avgAbove && parseInt(avgAbove) > 0 && <span style={{ color: "#ef4444" }}> (+{avgAbove}% above field)</span>}
+                    </>}
+                    {t.highScore > 0 && <>, peaked at <span className="font-mono text-white">{t.highScore}</span></>}.
+                  </p>
+                );
+              })}
             </div>
           )}
 
-          {/* Win distribution bar chart */}
-          {teams.filter((t) => t.matchesPlayed > 0).length > 0 && (
+          {/* Field strength distribution */}
+          {activeTeams.length > 0 && (
             <div className="glass rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
               <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
-                Season Performance Distribution
+                Field Strength Distribution
               </p>
               <div className="space-y-2">
                 {(["elite", "strong", "solid", "unknown"] as ThreatTier[]).map((tier) => {
-                  const count = teams.filter((t) => threatTier(t) === tier).length;
+                  const count = teams.filter((t) => threatTier(t, topScore, topAvg) === tier).length;
                   const pct = (count / Math.max(teams.length, 1)) * 100;
                   const cfg = TIER_CONFIG[tier];
                   return (
                     <div key={tier}>
                       <div className="flex justify-between text-xs mb-0.5">
                         <span style={{ color: cfg.color }}>{cfg.label}</span>
-                        <span style={{ color: "var(--text-muted)" }}>{count} team{count !== 1 ? "s" : ""}</span>
+                        <span style={{ color: "var(--text-muted)" }}>{count} team{count !== 1 ? "s" : ""} · {pct.toFixed(0)}%</span>
                       </div>
                       <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
                         <div className="h-2 rounded-full transition-all duration-700"
@@ -1132,13 +1235,31 @@ function UpcomingPreviewSection({
                   );
                 })}
               </div>
+              <div className="mt-3 pt-3 grid grid-cols-2 gap-2 text-xs" style={{ borderTop: "1px solid var(--border)" }}>
+                <div>
+                  <span style={{ color: "var(--text-muted)" }}>Field Avg Score </span>
+                  <span className="font-mono font-bold">{fieldAvgScore.toFixed(0)}</span>
+                </div>
+                <div>
+                  <span style={{ color: "var(--text-muted)" }}>Field Avg Win% </span>
+                  <span className="font-mono font-bold">{(fieldAvgWinRate * 100).toFixed(0)}%</span>
+                </div>
+                <div>
+                  <span style={{ color: "var(--text-muted)" }}>Top Score </span>
+                  <span className="font-mono font-bold">{topScore > 1 ? topScore : "—"}</span>
+                </div>
+                <div>
+                  <span style={{ color: "var(--text-muted)" }}>Teams with data </span>
+                  <span className="font-mono font-bold">{activeTeams.length}/{teams.length}</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
       ) : (
         /* Full roster table */
         <div className="glass rounded-xl overflow-x-auto" style={{ border: "1px solid var(--border)" }}>
-          <table className="w-full text-xs min-w-[540px]">
+          <table className="w-full text-xs min-w-[640px]">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-muted)" }}>
                 <th className="text-left px-3 py-2.5 w-8">#</th>
@@ -1146,14 +1267,17 @@ function UpcomingPreviewSection({
                 <th className="text-right px-3 py-2.5">Tier</th>
                 <th className="text-right px-3 py-2.5">W-L</th>
                 <th className="text-right px-3 py-2.5">Win%</th>
+                <th className="text-right px-3 py-2.5">Avg</th>
                 <th className="text-right px-3 py-2.5">Peak</th>
-                <th className="text-right px-3 py-2.5">Events</th>
+                <th className="text-right px-3 py-2.5">Evts</th>
+                <th className="text-right px-3 py-2.5">Str.</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((team, i) => {
-                const tier = threatTier(team);
+                const tier = threatTier(team, topScore, topAvg);
                 const cfg = TIER_CONFIG[tier];
+                const score = strengthScore(team, topScore, topAvg);
                 const isMe = team.teamNumber === myTeam;
                 return (
                   <tr key={team.teamNumber}
@@ -1189,10 +1313,27 @@ function UpcomingPreviewSection({
                       ) : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono">
+                      {team.avgScore > 0 ? (
+                        <span style={{ color: team.avgScore >= fieldAvgScore ? "var(--success)" : "var(--text-muted)" }}>
+                          {team.avgScore.toFixed(0)}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono">
                       {team.highScore > 0 ? team.highScore : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono" style={{ color: "var(--text-muted)" }}>
                       {team.eventsPlayed > 0 ? team.eventsPlayed : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      {team.matchesPlayed > 0 ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <div className="w-10 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                            <div className="h-1.5 rounded-full" style={{ width: `${score}%`, background: cfg.color }} />
+                          </div>
+                          <span className="font-mono w-6 text-right" style={{ color: cfg.color }}>{score}</span>
+                        </div>
+                      ) : "—"}
                     </td>
                   </tr>
                 );
