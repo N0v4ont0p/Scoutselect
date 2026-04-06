@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, RefreshCw, AlertTriangle, Trophy, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, RefreshCw, AlertTriangle, Trophy, Users, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { PhaseIndicator } from '@/components/PhaseIndicator';
 import { SparkLine } from '@/components/SparkLine';
 import { DashboardSkeleton } from '@/components/SkeletonLoader';
@@ -322,9 +322,127 @@ function CaptainPitchCard({
   );
 }
 
+// ─── Match history view ───────────────────────────────────────────────────────
+
+function MatchHistoryView({ matches, teamNumber }: { matches: Match[]; teamNumber: number }) {
+  // FTCScout uses multiple names for elimination rounds depending on season
+  const levelOrder: Record<string, number> = { QUAL: 0, SEMIFINAL: 1, FINAL: 2, ELIM: 1, PLAYOFF: 1, ELIMINATION: 1 };
+
+  const teamMatches = matches
+    .filter(m => m.played && m.teams.some(t => t.teamNumber === teamNumber))
+    .sort((a, b) => {
+      const la = levelOrder[a.tournamentLevel] ?? 3;
+      const lb = levelOrder[b.tournamentLevel] ?? 3;
+      if (la !== lb) return la - lb;
+      if (a.series !== b.series) return a.series - b.series;
+      return a.matchNum - b.matchNum;
+    });
+
+  if (teamMatches.length === 0) {
+    return (
+      <div className="glass rounded-xl p-6 text-center">
+        <p className="text-muted-foreground text-sm">No matches played at this event yet.</p>
+      </div>
+    );
+  }
+
+  const qualResults = teamMatches
+    .filter(m => m.tournamentLevel === 'QUAL')
+    .map(m => {
+      const entry = m.teams.find(t => t.teamNumber === teamNumber);
+      if (!entry) return null;
+      const winner = m.winner?.toUpperCase();
+      if (!winner || winner === 'TIE') return 'T';
+      return winner === entry.alliance.toUpperCase() ? 'W' : 'L';
+    })
+    .filter((r): r is 'W' | 'L' | 'T' => r !== null);
+
+  const wins = qualResults.filter(r => r === 'W').length;
+  const losses = qualResults.filter(r => r === 'L').length;
+  const ties = qualResults.filter(r => r === 'T').length;
+
+  return (
+    <div className="space-y-3">
+      {/* Record summary */}
+      <div className="glass rounded-xl px-4 py-3 flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Qual record</p>
+        <div className="flex gap-3 text-sm font-bold tabular-nums">
+          <span className="text-emerald-400">{wins}W</span>
+          <span className="text-rose-400">{losses}L</span>
+          {ties > 0 && <span className="text-amber-400">{ties}T</span>}
+        </div>
+      </div>
+
+      {/* Match list */}
+      {teamMatches.map(match => {
+        const teamEntry = match.teams.find(t => t.teamNumber === teamNumber);
+        if (!teamEntry) return null;
+
+        const alliance = teamEntry.alliance;
+        const allianceLower = alliance.toLowerCase() as 'red' | 'blue';
+        const oppLower: 'red' | 'blue' = allianceLower === 'red' ? 'blue' : 'red';
+        const ourScores = match.scores?.[allianceLower];
+        const oppScores = match.scores?.[oppLower];
+
+        const winner = match.winner?.toUpperCase();
+        const result: 'W' | 'L' | 'T' =
+          !winner || winner === 'TIE' ? 'T' : winner === alliance.toUpperCase() ? 'W' : 'L';
+
+        const level = match.tournamentLevel;
+        const label =
+          level === 'QUAL' ? `Q${match.matchNum}` :
+          level === 'SEMIFINAL' ? `SF${match.series}M${match.matchNum}` :
+          level === 'FINAL' ? `F${match.series}M${match.matchNum}` :
+          `M${match.matchNum}`;
+
+        return (
+          <div
+            key={match.id}
+            className="glass rounded-xl px-4 py-3 animate-fade-in-up"
+          >
+            <div className="flex items-center gap-3">
+              {/* Match label + alliance */}
+              <div className="flex-shrink-0 w-14 flex flex-col items-center gap-1">
+                <p className="text-xs font-bold text-white">{label}</p>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${allianceLower === 'red' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                  {alliance}
+                </span>
+              </div>
+
+              {/* Scores */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl font-black text-white tabular-nums">{ourScores?.totalPoints ?? '—'}</span>
+                  <span className="text-muted-foreground text-xs">vs</span>
+                  <span className="text-base font-bold text-slate-400 tabular-nums">{oppScores?.totalPoints ?? '—'}</span>
+                </div>
+                {ourScores && (
+                  <div className="flex gap-2 mt-0.5">
+                    <span className="text-[10px] text-slate-500">A <span className="text-slate-300">{ourScores.autoPoints}</span></span>
+                    <span className="text-[10px] text-slate-500">DC <span className="text-slate-300">{ourScores.dcPoints}</span></span>
+                    <span className="text-[10px] text-slate-500">EG <span className="text-slate-300">{ourScores.endgamePoints}</span></span>
+                  </div>
+                )}
+              </div>
+
+              {/* Result badge */}
+              <div className={`flex-shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center font-black text-sm
+                ${result === 'W' ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/25' :
+                  result === 'L' ? 'text-rose-400 bg-rose-500/15 border-rose-500/25' :
+                  'text-amber-400 bg-amber-500/15 border-amber-500/25'}`}>
+                {result}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 
-type AppMode = 'mode-select' | 'picking' | 'pitching';
+type AppMode = 'mode-select' | 'picking' | 'pitching' | 'history';
 
 function DashboardContent() {
   const searchParams = useSearchParams();
@@ -334,7 +452,7 @@ function DashboardContent() {
 
   const [team, setTeam] = useState<Team | null>(null);
   const [events, setEvents] = useState<TeamEvent[]>([]);
-  const [, setMatches] = useState<Match[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [selectedEvent, setSelectedEvent] = useState('');
   const [showEventPicker, setShowEventPicker] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -376,9 +494,13 @@ function DashboardContent() {
     if (!selectedEvent) return;
     setRefreshing(true);
     try {
+      const selectedEventData = events.find(e => e.event.code === selectedEvent);
+      const isPastEvent = selectedEventData ? new Date(selectedEventData.event.end) < new Date() : false;
+      const qs = isPastEvent ? '?completed=true' : '';
+
       const [matchesData, teamsData] = await Promise.all([
-        fetch(`/api/event/${season}/${selectedEvent}/matches`).then(r => r.json()),
-        fetch(`/api/event/${season}/${selectedEvent}/teams`).then(r => r.json()),
+        fetch(`/api/event/${season}/${selectedEvent}/matches${qs}`).then(r => r.json()),
+        fetch(`/api/event/${season}/${selectedEvent}/teams${qs}`).then(r => r.json()),
       ]);
 
       const matchList: Match[] = Array.isArray(matchesData) ? matchesData : [];
@@ -423,9 +545,12 @@ function DashboardContent() {
       const myOpr = oprMap.get(teamNumber);
       if (myOpr) { mine.opr = myOpr.totalOpr; mine.autoOpr = myOpr.autoOpr; mine.teleopOpr = myOpr.teleopOpr; mine.endgameOpr = myOpr.endgameOpr; }
       setMyMetrics(mine);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      setError('Failed to load event data. Please try refreshing.');
+    }
     setRefreshing(false);
-  }, [selectedEvent, season, teamNumber, team]);
+  }, [selectedEvent, season, teamNumber, team, events]);
 
   useEffect(() => { loadEventData(); }, [loadEventData]);
 
@@ -603,7 +728,6 @@ function DashboardContent() {
               <>
                 <p className="text-center text-sm text-muted-foreground">What do you need today?</p>
 
-                {/* BIG mode buttons */}
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => setAppMode('picking')}
@@ -631,6 +755,21 @@ function DashboardContent() {
                       <p className="font-bold text-white text-base text-center">Get Me Picked</p>
                       <p className="text-xs text-muted-foreground text-center mt-0.5 leading-relaxed">
                         I need to pitch myself — show me who to approach and what to say
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setAppMode('history')}
+                    className="col-span-2 glass glass-hover rounded-2xl p-4 flex items-center gap-4 group active:scale-[0.97] transition-transform duration-100"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center group-hover:scale-110 transition-transform duration-200 flex-shrink-0">
+                      <History className="h-5 w-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-white text-sm">Match History</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        View all match results and scores from this event
                       </p>
                     </div>
                   </button>
@@ -712,6 +851,17 @@ function DashboardContent() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── HISTORY MODE ─────────────────────────────────────────────────── */}
+        {appMode === 'history' && (
+          <div className="space-y-4 animate-fade-in">
+            <div>
+              <p className="text-sm font-semibold text-white">Match History</p>
+              <p className="text-xs text-muted-foreground mt-0.5">All played matches for your team at this event</p>
+            </div>
+            <MatchHistoryView matches={matches} teamNumber={teamNumber} />
           </div>
         )}
 
