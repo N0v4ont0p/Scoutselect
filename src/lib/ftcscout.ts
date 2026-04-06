@@ -258,7 +258,7 @@ export async function searchTeams(query: string): Promise<FTCTeam[]> {
       location: { city: string; state: string; country: string };
     }[];
   }
-  const data = await gql<SearchResult>(q, { searchText: query, limit: 10 });
+  const data = await gql<SearchResult>(q, { searchText: query, limit: 25 });
   return (data.teamsSearch ?? []).map((t) => ({
     teamNumber: t.number,
     nameShort: t.name,

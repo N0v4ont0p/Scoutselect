@@ -34,6 +34,7 @@ export default function Home() {
     { href: "/events", label: t.nav.events },
     { href: "/seasons", label: t.nav.seasons },
     { href: "/compare", label: t.nav.compare },
+    { href: "/methodology", label: t.nav.methodology },
   ];
 
   useEffect(() => {
@@ -133,10 +134,20 @@ export default function Home() {
           <span className="gradient-text">{t.home.headline}</span>
         </h1>
 
-        <p className={`text-lg sm:text-xl mb-10 max-w-2xl mx-auto animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}
+        <p className={`text-lg sm:text-xl mb-6 max-w-2xl mx-auto animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}
           style={{ color: "var(--text-muted)" }}>
           {t.home.subheadline}
         </p>
+
+        {/* Free / unlimited pill */}
+        <div className={`flex items-center justify-center gap-3 mb-10 animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
+          {["Free forever", "No sign-up", "Unlimited analyses"].map((label) => (
+            <span key={label} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium"
+              style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)", border: "1px solid rgba(34,197,94,0.25)" }}>
+              ✓ {label}
+            </span>
+          ))}
+        </div>
 
         {/* ── Search ── */}
         <div className={`relative max-w-lg mx-auto mb-16 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`} style={{ zIndex: 60 }}>
