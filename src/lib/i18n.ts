@@ -72,6 +72,7 @@ export const translations = {
     seasons: {
       title: "Seasons",
       seasonLabel: "{start}–{end}",
+      back: "Home",
     },
     // Season detail
     seasonDetail: {
@@ -185,6 +186,7 @@ export const translations = {
     seasons: {
       title: "赛季",
       seasonLabel: "{start}–{end}",
+      back: "首页",
     },
     // Season detail
     seasonDetail: {

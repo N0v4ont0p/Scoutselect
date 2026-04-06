@@ -32,8 +32,8 @@ export default function Navbar() {
           <Image
             src="/logo.png"
             alt="ScoutSelect logo"
-            width={32}
-            height={14}
+            width={764}
+            height={338}
             className="h-7 w-auto object-contain"
             priority
           />
