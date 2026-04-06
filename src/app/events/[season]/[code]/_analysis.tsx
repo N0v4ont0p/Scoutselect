@@ -17,6 +17,7 @@ import {
   type CaptainApproach, type AllianceMatchup,
 } from "@/lib/analytics";
 import { formatScore, seasonName, cn } from "@/lib/utils";
+import { useI18n } from "@/context/LanguageContext";
 
 // ─── Tiny helpers ─────────────────────────────────────────────────────────────
 
@@ -64,14 +65,6 @@ function LikelihoodBadge({ level }: { level: "high" | "medium" | "low" }) {
   );
 }
 
-const PHASE_LABELS: Record<EventPhase, string> = {
-  upcoming: "Upcoming",
-  quals_running: "🔴 Quals Live",
-  alliance_selection: "🟡 Alliance Selection",
-  playoffs_running: "🟠 Playoffs Live",
-  complete: "✅ Complete",
-};
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EventAnalysisContent() {
@@ -79,6 +72,16 @@ export default function EventAnalysisContent() {
   const searchParams = useSearchParams();
   const season = parseInt(params.season as string, 10);
   const code = (params.code as string).toUpperCase();
+  const { t } = useI18n();
+  const a = t.analysis;
+
+  const phaseLabels: Record<EventPhase, string> = {
+    upcoming: a.phases.upcoming,
+    quals_running: a.phases.quals_running,
+    alliance_selection: a.phases.alliance_selection,
+    playoffs_running: a.phases.playoffs_running,
+    complete: a.phases.complete,
+  };
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [teamInput, setTeamInput] = useState(searchParams.get("team") ?? "");
@@ -251,18 +254,16 @@ export default function EventAnalysisContent() {
           className="flex items-center gap-1.5 text-sm shrink-0"
           style={{ color: "var(--text-muted)" }}>
           <ArrowLeft className="w-4 h-4" />
-          {/* Analysis content is intentionally always rendered in English
-              regardless of the app language setting. */}
           {searchParams.get("team")
-            ? `Team ${searchParams.get("team")}`
-            : "Events"}
+            ? t.eventAnalysis.backTeam.replace("{num}", searchParams.get("team")!)
+            : t.eventAnalysis.backEvents}
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-black truncate">
             {eventName || code}
           </h1>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-            {seasonName(season)} · {allTeams.length} teams · {qualMatches.length} qual matches
+            {seasonName(season)} · {a.teamsCount.replace("{n}", String(allTeams.length))} · {a.qualMatchesCount.replace("{n}", String(qualMatches.length))}
           </p>
         </div>
 
@@ -272,15 +273,15 @@ export default function EventAnalysisContent() {
             onClick={() => setPhaseMenuOpen((v) => !v)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}>
-            {PHASE_LABELS[activePhase]}
-            {manualPhase && <span style={{ color: "var(--warning)" }}> · manual</span>}
+            {phaseLabels[activePhase]}
+            {manualPhase && <span style={{ color: "var(--warning)" }}> · {a.manualLabel}</span>}
             <ChevronDown className="w-3 h-3 ml-1" style={{ color: "var(--text-muted)" }} />
           </button>
           {phaseMenuOpen && (
             <div className="absolute right-0 mt-1 w-52 rounded-xl glass z-50 py-1 shadow-xl">
               <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider"
                 style={{ color: "var(--text-muted)" }}>
-                Auto-detected: {PHASE_LABELS[detectedPhase]}
+                {a.autoDetected} {phaseLabels[detectedPhase]}
               </div>
               {(["upcoming", "quals_running", "alliance_selection", "playoffs_running", "complete"] as EventPhase[]).map((ph) => (
                 <button key={ph}
@@ -290,9 +291,9 @@ export default function EventAnalysisContent() {
                     (manualPhase ?? detectedPhase) === ph ? "font-bold" : ""
                   )}
                   style={{ color: "var(--text)" }}>
-                  {PHASE_LABELS[ph]}
+                  {phaseLabels[ph]}
                   {ph === detectedPhase && (
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>auto</span>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{a.autoLabel}</span>
                   )}
                 </button>
               ))}
@@ -312,16 +313,16 @@ export default function EventAnalysisContent() {
       <div className="glass rounded-2xl p-5" style={{ border: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2 mb-1" style={{ color: "var(--accent)" }}>
           <Target className="w-4 h-4" />
-          <span className="font-bold text-sm">Your Team Analysis</span>
+          <span className="font-bold text-sm">{a.yourTeamAnalysis}</span>
         </div>
         <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
-          Enter your team number to unlock personalized alliance selection guidance — who to pick, who to approach, and how to pitch yourself.
+          {a.teamInputDesc}
         </p>
         <div className="flex gap-2">
           <input
             className="flex-1 px-3 py-2 rounded-lg text-sm font-mono"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
-            placeholder="Team number (e.g. 19859)"
+            placeholder={a.teamPlaceholder}
             value={teamInput}
             onChange={(e) => setTeamInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
@@ -331,12 +332,12 @@ export default function EventAnalysisContent() {
             disabled={!teamInput.trim()}
             className="px-4 py-2 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-40"
             style={{ background: "var(--accent)", color: "#fff" }}>
-            Analyze →
+            {a.analyzeBtn}
           </button>
         </div>
         {submittedTeam && !myRanking && qualMatches.length > 0 && (
           <p className="mt-2 text-xs" style={{ color: "var(--warning)" }}>
-            ⚠ Team {submittedTeam} not found in rankings. Check the team number.
+            {a.teamNotFound.replace("{team}", String(submittedTeam))}
           </p>
         )}
       </div>
@@ -406,29 +407,33 @@ export default function EventAnalysisContent() {
 // ─── Role Banner ──────────────────────────────────────────────────────────────
 
 function RoleBanner({ role, phase }: { role: ReturnType<typeof determineRole>; teamNumber: number; phase: EventPhase }) {
+  const { t } = useI18n();
+  const a = t.analysis;
   const isAlliancePhase = ["alliance_selection", "playoffs_running", "complete"].includes(phase);
 
   const roleConfig = {
     captain: {
       icon: <Target className="w-5 h-5" />,
-      title: `You're Alliance Captain #${role.rank}`,
-      subtitle: `Top ${role.numAlliances} teams pick first — you'll select ${role.numAlliances === role.rank ? "last" : "your"} 2 alliance partners`,
+      title: a.captainTitle.replace("{rank}", String(role.rank)),
+      subtitle: a.captainSubtitle
+        .replace("{n}", String(role.numAlliances))
+        .replace("{picks}", role.numAlliances === role.rank ? a.captainPicksLast : a.captainPicksYour),
       grad: "linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.1) 100%)",
       border: "rgba(99,102,241,0.4)",
       color: "var(--accent)",
     },
     picked: {
       icon: <Star className="w-5 h-5" />,
-      title: `You're in the Alliance Pool`,
-      subtitle: `Rank #${role.rank} — captains will approach you. See below who needs you most.`,
+      title: a.pickedTitle,
+      subtitle: a.pickedSubtitle.replace("{rank}", String(role.rank)),
       grad: "linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,102,241,0.1) 100%)",
       border: "rgba(139,92,246,0.4)",
       color: "var(--accent-2)",
     },
     borderline: {
       icon: <Zap className="w-5 h-5" />,
-      title: `You're on the Bubble`,
-      subtitle: `Rank #${role.rank} — you're near the captain cutoff (#${role.numAlliances}). Approach captains proactively AND prepare your own picks.`,
+      title: a.borderlineTitle,
+      subtitle: a.borderlineSubtitle.replace("{rank}", String(role.rank)).replace("{cutoff}", String(role.numAlliances)),
       grad: "linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(239,68,68,0.08) 100%)",
       border: "rgba(245,158,11,0.4)",
       color: "var(--warning)",
@@ -445,7 +450,7 @@ function RoleBanner({ role, phase }: { role: ReturnType<typeof determineRole>; t
         </div>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           {phase === "quals_running"
-            ? `Quals are running. At this rank you'd be a ${role.role === "captain" ? "captain" : "picked team"}. See guidance below to improve your position.`
+            ? a.qualsRunningRole.replace("{role}", role.role === "captain" ? a.roleCaptain : a.rolePicked)
             : cfg.subtitle}
         </p>
       </div>
@@ -473,6 +478,8 @@ function AllianceBuilderSection({
   maxOPR: number;
   season: number;
 }) {
+  const { t } = useI18n();
+  const a = t.analysis;
   const top = picks[0];
   const backups = picks.slice(1);
   const showEg = season <= 2023;
@@ -481,23 +488,23 @@ function AllianceBuilderSection({
     <section className="space-y-3">
       <h2 className="text-lg font-bold flex items-center gap-2">
         <Shield className="w-5 h-5" style={{ color: "var(--accent)" }} />
-        Alliance Builder
+        {a.allianceBuilder}
       </h2>
 
       {/* My robot card */}
       <div className="glass rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Your Robot</span>
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{a.yourRobot}</span>
           <span className="font-black text-lg" style={{ color: "var(--accent)" }}>#{myMetrics.teamNumber}</span>
         </div>
-        <MetricRow label="OPR" value={myMetrics.opr} max={maxOPR} />
-        <MetricRow label="Auto avg" value={myMetrics.avgAuto} max={maxOPR / 2} />
-        <MetricRow label="TeleOp avg" value={myMetrics.avgDc} max={maxOPR / 2} />
-        {showEg && <MetricRow label="Endgame avg" value={myMetrics.avgEndgame} max={maxOPR / 3} />}
+        <MetricRow label={a.opr} value={myMetrics.opr} max={maxOPR} />
+        <MetricRow label={a.autoAvg} value={myMetrics.avgAuto} max={maxOPR / 2} />
+        <MetricRow label={a.teleopAvg} value={myMetrics.avgDc} max={maxOPR / 2} />
+        {showEg && <MetricRow label={a.endgameAvg} value={myMetrics.avgEndgame} max={maxOPR / 3} />}
         <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          <span>Reliability {myMetrics.reliability.toFixed(0)}/100</span>
+          <span>{a.reliability.replace("{n}", myMetrics.reliability.toFixed(0))}</span>
           <span>·</span>
-          <span className="flex items-center gap-1"><TrendIcon trend={myMetrics.trend} /> {myMetrics.trend > 1 ? "Improving" : myMetrics.trend < -1 ? "Declining" : "Stable"}</span>
+          <span className="flex items-center gap-1"><TrendIcon trend={myMetrics.trend} /> {myMetrics.trend > 1 ? a.improving : myMetrics.trend < -1 ? a.declining : a.stable}</span>
           <span>·</span>
           <Sparkline values={myMetrics.sparkline} />
         </div>
@@ -510,7 +517,7 @@ function AllianceBuilderSection({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                 style={{ background: "rgba(99,102,241,0.18)", color: "var(--accent)" }}>
-                ⭐ TOP PICK
+                {a.topPick}
               </span>
               <span style={{ color: top.availableForPick1 ? "var(--success)" : "var(--warning)" }}
                 className="text-xs">{top.availabilityTag}</span>
@@ -525,23 +532,23 @@ function AllianceBuilderSection({
             ))}
           </div>
 
-          <MetricRow label="OPR" value={top.metrics.opr} max={maxOPR} />
-          <MetricRow label="Auto" value={top.metrics.avgAuto} max={maxOPR / 2} />
-          <MetricRow label="TeleOp" value={top.metrics.avgDc} max={maxOPR / 2} />
-          {showEg && <MetricRow label="Endgame" value={top.metrics.avgEndgame} max={maxOPR / 3} />}
+          <MetricRow label={a.opr} value={top.metrics.opr} max={maxOPR} />
+          <MetricRow label={a.auto} value={top.metrics.avgAuto} max={maxOPR / 2} />
+          <MetricRow label={a.teleop} value={top.metrics.avgDc} max={maxOPR / 2} />
+          {showEg && <MetricRow label={a.endgame} value={top.metrics.avgEndgame} max={maxOPR / 3} />}
 
           {top.bestPick2 && (
             <div className="mt-3 pt-3 text-sm" style={{ borderTop: "1px solid var(--border)" }}>
-              <span style={{ color: "var(--text-muted)" }}>→ With this pick, best 2nd pick: </span>
+              <span style={{ color: "var(--text-muted)" }}>{a.bestPick2Prefix} </span>
               <span className="font-bold" style={{ color: "var(--accent)" }}>#{top.bestPick2.teamNumber}</span>
-              <span style={{ color: "var(--text-muted)" }}> → Projected alliance strength: </span>
+              <span style={{ color: "var(--text-muted)" }}> {a.projectedStrength} </span>
               <span className="font-mono font-bold">{top.bestPick2.allianceStrength.toFixed(1)}</span>
             </div>
           )}
 
           <div className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-            Alliance strength (3-team): <span className="font-mono font-bold text-white">{top.allianceStrength.toFixed(1)}</span>
-            {" · "}Synergy: {top.synergy.complementarity.toFixed(0)} pts complementarity
+            {a.allianceStrength} <span className="font-mono font-bold text-white">{top.allianceStrength.toFixed(1)}</span>
+            {" · "}{a.synergyLabel.replace("{n}", top.synergy.complementarity.toFixed(0))}
           </div>
         </div>
       )}
@@ -550,7 +557,7 @@ function AllianceBuilderSection({
       {backups.length > 0 && (
         <div className="glass rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
           <p className="text-xs font-semibold uppercase tracking-wider mb-3"
-            style={{ color: "var(--text-muted)" }}>Backup Picks — if top choice is gone</p>
+            style={{ color: "var(--text-muted)" }}>{a.backupPicks}</p>
           <div className="space-y-2.5">
             {backups.map((p, i) => (
               <div key={p.teamNumber} className="flex items-center gap-3">
@@ -572,7 +579,7 @@ function AllianceBuilderSection({
       {matchups.length > 0 && (
         <div className="glass rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
           <p className="text-xs font-semibold uppercase tracking-wider mb-3"
-            style={{ color: "var(--text-muted)" }}>Projected Win Probability vs Other Alliances</p>
+            style={{ color: "var(--text-muted)" }}>{a.winProbTitle}</p>
           <div className="space-y-2">
             {matchups.map((m) => {
               const pct = m.winProbability * 100;
@@ -581,12 +588,12 @@ function AllianceBuilderSection({
                 <div key={m.opponentCaptain}>
                   <div className="flex justify-between text-xs mb-1">
                     <span style={{ color: "var(--text-muted)" }}>
-                      vs Alliance led by #{m.opponentCaptain}
+                      {a.vsAlliance.replace("{captain}", String(m.opponentCaptain))}
                       {m.strengthDelta > 0
-                        ? <span style={{ color: "var(--success)" }}> (+{m.strengthDelta.toFixed(0)} str)</span>
-                        : <span style={{ color: "var(--danger)" }}> ({m.strengthDelta.toFixed(0)} str)</span>}
+                        ? <span style={{ color: "var(--success)" }}> {a.strPos.replace("{n}", m.strengthDelta.toFixed(0))}</span>
+                        : <span style={{ color: "var(--danger)" }}> {a.strNeg.replace("{n}", m.strengthDelta.toFixed(0))}</span>}
                     </span>
-                    <span className="font-bold" style={{ color: col }}>{pct.toFixed(0)}% win</span>
+                    <span className="font-bold" style={{ color: col }}>{a.winPct.replace("{n}", pct.toFixed(0))}</span>
                   </div>
                   <Bar pct={pct} color={col} />
                 </div>
@@ -608,30 +615,32 @@ function PitchStrategySection({
   approaches: CaptainApproach[];
   maxOPR: number;
 }) {
+  const { t } = useI18n();
+  const a = t.analysis;
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-bold flex items-center gap-2">
         <Star className="w-5 h-5" style={{ color: "var(--accent-2)" }} />
-        Pitch Strategy — Who Needs You Most
+        {a.pitchTitle}
       </h2>
       <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-        Captains ranked by how much your team would strengthen their alliance. Approach the highest-delta captains first.
+        {a.pitchDesc}
       </p>
 
-      {approaches.slice(0, 4).map((a, i) => (
-        <div key={a.captainNumber} className="glass rounded-xl p-4 space-y-3"
+      {approaches.slice(0, 4).map((ap, i) => (
+        <div key={ap.captainNumber} className="glass rounded-xl p-4 space-y-3"
           style={{ border: i === 0 ? "1px solid rgba(139,92,246,0.4)" : "1px solid var(--border)" }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-black text-lg" style={{ color: i === 0 ? "var(--accent-2)" : "var(--text)" }}>
-                #{i + 1} · Captain {a.captainNumber}
+                {a.captainLabel.replace("{i}", String(i + 1)).replace("{n}", String(ap.captainNumber))}
               </span>
-              <LikelihoodBadge level={a.pickLikelihood} />
+              <LikelihoodBadge level={ap.pickLikelihood} />
             </div>
             <div className="text-right">
-              <div className="text-xs" style={{ color: "var(--text-muted)" }}>Alliance boost</div>
+              <div className="text-xs" style={{ color: "var(--text-muted)" }}>{a.allianceBoost}</div>
               <div className="font-bold" style={{ color: "var(--success)" }}>
-                +{a.improvementDelta.toFixed(1)}
+                +{ap.improvementDelta.toFixed(1)}
               </div>
             </div>
           </div>
@@ -639,27 +648,27 @@ function PitchStrategySection({
           {/* Strength comparison bar */}
           <div className="text-xs space-y-1">
             <div className="flex justify-between" style={{ color: "var(--text-muted)" }}>
-              <span>Without you: {a.allianceStrengthWithoutMe.toFixed(1)}</span>
-              <span>With you: {a.allianceStrengthWithMe.toFixed(1)}</span>
+              <span>{a.withoutMe.replace("{n}", ap.allianceStrengthWithoutMe.toFixed(1))}</span>
+              <span>{a.withMe.replace("{n}", ap.allianceStrengthWithMe.toFixed(1))}</span>
             </div>
             <div className="relative h-2 rounded-full" style={{ background: "var(--surface-2)" }}>
-              <div className="h-2 rounded-full" style={{ width: `${(a.allianceStrengthWithoutMe / (maxOPR * 3)) * 100}%`, background: "var(--border)" }} />
+              <div className="h-2 rounded-full" style={{ width: `${(ap.allianceStrengthWithoutMe / (maxOPR * 3)) * 100}%`, background: "var(--border)" }} />
               <div className="absolute inset-y-0 rounded-full transition-all"
-                style={{ left: `${(a.allianceStrengthWithoutMe / (maxOPR * 3)) * 100}%`, width: `${(a.improvementDelta / (maxOPR * 3)) * 100}%`, background: "var(--accent-2)" }} />
+                style={{ left: `${(ap.allianceStrengthWithoutMe / (maxOPR * 3)) * 100}%`, width: `${(ap.improvementDelta / (maxOPR * 3)) * 100}%`, background: "var(--accent-2)" }} />
             </div>
           </div>
 
           {/* Synergy detail */}
           <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Complementarity: <span className="font-semibold text-white">{a.synergyWithMe.complementarity.toFixed(0)} pts</span>
-            {" · "}Overlap penalty: <span className="font-semibold" style={{ color: "var(--danger)" }}>-{a.synergyWithMe.overlapPenalty.toFixed(0)}</span>
+            {a.complementarity.replace("{n}", ap.synergyWithMe.complementarity.toFixed(0))}
+            {" · "}{a.overlapPenalty.replace("{n}", ap.synergyWithMe.overlapPenalty.toFixed(0))}
           </div>
 
           {/* Pitch points */}
           <div>
-            <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--text-muted)" }}>💬 Say this to Captain #{a.captainNumber}:</p>
+            <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--text-muted)" }}>{a.sayThis.replace("{n}", String(ap.captainNumber))}</p>
             <ul className="space-y-1">
-              {a.pitchPoints.map((pt) => (
+              {ap.pitchPoints.map((pt) => (
                 <li key={pt} className="flex items-start gap-1.5 text-sm">
                   <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--success)" }} />
                   <span>{pt}</span>
@@ -669,11 +678,11 @@ function PitchStrategySection({
           </div>
 
           {/* Red flags */}
-          {a.redFlags.length > 0 && (
+          {ap.redFlags.length > 0 && (
             <div>
-              <p className="text-xs font-semibold mb-1" style={{ color: "var(--warning)" }}>⚠ Be aware (address these proactively):</p>
+              <p className="text-xs font-semibold mb-1" style={{ color: "var(--warning)" }}>{a.beAware}</p>
               <ul className="space-y-1">
-                {a.redFlags.map((f) => (
+                {ap.redFlags.map((f) => (
                   <li key={f} className="flex items-start gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
                     <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" style={{ color: "var(--warning)" }} />
                     {f}
@@ -698,34 +707,36 @@ function QualsGuidanceSection({
   totalTeams: number;
   numAlliances: number;
 }) {
+  const { t } = useI18n();
+  const a = t.analysis;
   const spotsAway = myRank - numAlliances;
   const isClose = spotsAway <= 3;
 
   return (
     <div className="glass rounded-xl p-4 space-y-2" style={{ border: "1px solid var(--border)" }}>
       <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-        Quals Running — Improve Your Position
+        {a.qualsTitle}
       </p>
       {myRank <= numAlliances ? (
         <p className="text-sm">
-          <span style={{ color: "var(--success)" }}>✓ You&apos;re currently a captain seed. </span>
-          Hold this rank to secure pick priority.
+          <span style={{ color: "var(--success)" }}>{a.captainSeed} </span>
+          {a.holdRank}
         </p>
       ) : (
         <p className="text-sm">
           {isClose
-            ? <span style={{ color: "var(--warning)" }}>You&apos;re {spotsAway} spot{spotsAway > 1 ? "s" : ""} away from a captain seed. Push hard in remaining matches!</span>
-            : <span style={{ color: "var(--text-muted)" }}>Rank #{myRank} of {totalTeams}. Captain cutoff is top {numAlliances}.</span>}
+            ? <span style={{ color: "var(--warning)" }}>{a.spotsAway.replace("{n}", String(spotsAway)).replace("{plural}", spotsAway > 1 ? "s" : "")}</span>
+            : <span style={{ color: "var(--text-muted)" }}>{a.farFromSeed.replace("{rank}", String(myRank)).replace("{total}", String(totalTeams)).replace("{cutoff}", String(numAlliances))}</span>}
         </p>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
         {[
-          { label: "Auto avg", val: myMetrics.avgAuto.toFixed(1), note: myMetrics.avgAuto < 15 ? "↑ Room to grow" : "✓ Strong" },
-          { label: "TeleOp avg", val: myMetrics.avgDc.toFixed(1), note: myMetrics.avgDc < 30 ? "↑ Room to grow" : "✓ Strong" },
-          { label: "Endgame avg", val: myMetrics.avgEndgame.toFixed(1), note: myMetrics.avgEndgame < 10 ? "↑ Room to grow" : "✓ Strong" },
-          { label: "Consistency", val: `${myMetrics.consistency.toFixed(0)}/100`, note: myMetrics.consistency < 70 ? "↑ Reduce variance" : "✓ Consistent" },
-          { label: "Reliability", val: `${myMetrics.reliability.toFixed(0)}/100`, note: "" },
-          { label: "Trend", val: myMetrics.trend > 1 ? "↑ Improving" : myMetrics.trend < -1 ? "↓ Declining" : "→ Stable", note: "" },
+          { label: a.autoAvgLabel, val: myMetrics.avgAuto.toFixed(1), note: myMetrics.avgAuto < 15 ? a.roomToGrow : a.strongLabel },
+          { label: a.teleopAvgLabel, val: myMetrics.avgDc.toFixed(1), note: myMetrics.avgDc < 30 ? a.roomToGrow : a.strongLabel },
+          { label: a.endgameAvgLabel, val: myMetrics.avgEndgame.toFixed(1), note: myMetrics.avgEndgame < 10 ? a.roomToGrow : a.strongLabel },
+          { label: a.consistencyLabel, val: `${myMetrics.consistency.toFixed(0)}/100`, note: myMetrics.consistency < 70 ? a.reduceVariance : a.consistentLabel },
+          { label: a.reliabilityLabel, val: `${myMetrics.reliability.toFixed(0)}/100`, note: "" },
+          { label: a.trendLabel, val: myMetrics.trend > 1 ? a.trendImproving : myMetrics.trend < -1 ? a.trendDeclining : a.trendStable, note: "" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg p-2.5" style={{ background: "var(--surface-2)" }}>
             <div style={{ color: "var(--text-muted)" }}>{item.label}</div>
@@ -742,10 +753,12 @@ function QualsGuidanceSection({
 // ─── Playoff guidance ─────────────────────────────────────────────────────────
 
 function PlayoffSection({ matchups }: { matchups: AllianceMatchup[] }) {
+  const { t } = useI18n();
+  const a = t.analysis;
   return (
     <div className="glass rounded-xl p-4 space-y-2" style={{ border: "1px solid var(--border)" }}>
       <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
-        Playoffs — Win Probability Breakdown
+        {a.playoffTitle}
       </p>
       {matchups.map((m) => {
         const pct = m.winProbability * 100;
@@ -753,7 +766,7 @@ function PlayoffSection({ matchups }: { matchups: AllianceMatchup[] }) {
         return (
           <div key={m.opponentCaptain}>
             <div className="flex justify-between text-xs mb-1">
-              <span style={{ color: "var(--text-muted)" }}>vs #{m.opponentCaptain}&apos;s alliance</span>
+              <span style={{ color: "var(--text-muted)" }}>{a.vsOpponent.replace("{n}", String(m.opponentCaptain))}</span>
               <span className="font-bold" style={{ color: col }}>{pct.toFixed(0)}%</span>
             </div>
             <Bar pct={pct} color={col} />
@@ -775,6 +788,8 @@ function FieldOverviewSection({
   captainNums: Set<number>;
   season: number;
 }) {
+  const { t } = useI18n();
+  const a = t.analysis;
   const showEg = season <= 2023;
   type SortKey = "opr" | "auto" | "dc" | "endgame" | "reliability" | "consistency";
   const [sortKey, setSortKey] = useState<SortKey>("opr");
@@ -788,10 +803,10 @@ function FieldOverviewSection({
   });
 
   const cols: { key: SortKey; label: string }[] = [
-    { key: "opr", label: "OPR" }, { key: "auto", label: "Auto" },
-    { key: "dc", label: "TeleOp" },
-    ...(showEg ? [{ key: "endgame" as SortKey, label: "EG" }] : []),
-    { key: "reliability", label: "Rely" }, { key: "consistency", label: "Cons" },
+    { key: "opr", label: a.colOpr }, { key: "auto", label: a.colAuto },
+    { key: "dc", label: a.colTeleop },
+    ...(showEg ? [{ key: "endgame" as SortKey, label: a.colEg }] : []),
+    { key: "reliability", label: a.colRely }, { key: "consistency", label: a.colCons },
   ];
 
   return (
@@ -799,10 +814,10 @@ function FieldOverviewSection({
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold flex items-center gap-2">
           <Users className="w-5 h-5" style={{ color: "var(--accent)" }} />
-          Field Strength Overview
+          {a.fieldTitle}
         </h2>
         <div className="flex items-center gap-1">
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Sort:</span>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>{a.sortLabel}</span>
           <select className="text-xs px-2 py-1 rounded-lg"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
             value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
@@ -811,7 +826,7 @@ function FieldOverviewSection({
         </div>
       </div>
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-        All metrics are derived analytics (OPR, averages, consistency) — not raw match results.
+        {a.metricsDisclaimer}
       </p>
 
       <div className="glass rounded-xl overflow-x-auto" style={{ border: "1px solid var(--border)" }}>
@@ -828,7 +843,7 @@ function FieldOverviewSection({
                   {c.label}
                 </th>
               ))}
-              <th className="text-right px-3 py-2.5">Trend</th>
+              <th className="text-right px-3 py-2.5">{a.trendHeader}</th>
               <th className="px-3 py-2.5" />
             </tr>
           </thead>
@@ -848,14 +863,14 @@ function FieldOverviewSection({
                     <div className="flex items-center gap-1.5">
                       {isCaptain && (
                         <span className="text-[9px] px-1 py-0.5 rounded font-bold tracking-wider"
-                          style={{ background: "rgba(99,102,241,0.2)", color: "var(--accent)" }}>C</span>
+                          style={{ background: "rgba(99,102,241,0.2)", color: "var(--accent)" }}>{a.captainBadge}</span>
                       )}
                       <Link href={`/teams/${m.teamNumber}`}
                         className="font-bold hover:underline"
                         style={{ color: isMine ? "var(--accent)" : "var(--text)" }}>
                         {m.teamNumber}
                       </Link>
-                      {isMine && <span className="text-[10px]" style={{ color: "var(--accent)" }}>◀ you</span>}
+                      {isMine && <span className="text-[10px]" style={{ color: "var(--accent)" }}>{a.youMarker}</span>}
                     </div>
                   </td>
                   <td className="px-3 py-2.5 text-right font-mono">{formatScore(m.opr)}</td>
@@ -914,13 +929,6 @@ function threatTier(team: PreviewTeam, topScore: number, topAvg: number): Threat
   return "solid";
 }
 
-const TIER_CONFIG: Record<ThreatTier, { label: string; color: string; bg: string; border: string; icon: string }> = {
-  elite:   { label: "🔥 Elite",   color: "#ef4444", bg: "rgba(239,68,68,0.10)",   border: "rgba(239,68,68,0.35)",   icon: "🔥" },
-  strong:  { label: "⚡ Strong",  color: "#f59e0b", bg: "rgba(245,158,11,0.10)",  border: "rgba(245,158,11,0.35)",  icon: "⚡" },
-  solid:   { label: "📊 Solid",   color: "#6366f1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.25)",  icon: "📊" },
-  unknown: { label: "❓ Unknown", color: "#64748b", bg: "var(--surface-2)",        border: "var(--border)",           icon: "❓" },
-};
-
 function UpcomingPreviewSection({
   teams, loading, myTeam, season, eventName,
 }: {
@@ -930,7 +938,16 @@ function UpcomingPreviewSection({
   season: number;
   eventName: string;
 }) {
+  const { t } = useI18n();
+  const a = t.analysis;
   const [tab, setTab] = useState<"threats" | "table">("threats");
+
+  const tierConfig: Record<ThreatTier, { label: string; color: string; bg: string; border: string; icon: string }> = {
+    elite:   { label: a.tierElite,   color: "#ef4444", bg: "rgba(239,68,68,0.10)",   border: "rgba(239,68,68,0.35)",   icon: "🔥" },
+    strong:  { label: a.tierStrong,  color: "#f59e0b", bg: "rgba(245,158,11,0.10)",  border: "rgba(245,158,11,0.35)",  icon: "⚡" },
+    solid:   { label: a.tierSolid,   color: "#6366f1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.25)",  icon: "📊" },
+    unknown: { label: a.tierUnknown, color: "#64748b", bg: "var(--surface-2)",        border: "var(--border)",           icon: "❓" },
+  };
 
   const topScore = Math.max(...teams.map((t) => t.highScore), 1);
   const topAvg   = Math.max(...teams.map((t) => t.avgScore), 1);
@@ -966,17 +983,17 @@ function UpcomingPreviewSection({
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold flex items-center gap-2">
           <Eye className="w-5 h-5" style={{ color: "var(--accent)" }} />
-          Pre-Event Scout Report
+          {a.previewTitle}
         </h2>
         <span className="text-xs px-2 py-1 rounded-full font-semibold"
           style={{ background: "rgba(99,102,241,0.12)", color: "var(--accent)", border: "1px solid rgba(99,102,241,0.25)" }}>
-          {seasonName(season)} · {teams.length} teams registered
+          {seasonName(season)} · {a.teamsRegistered.replace("{n}", String(teams.length))}
         </span>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--surface-2)" }}>
-        {([["threats", "🎯 Threats Radar"], ["table", "📊 Full Roster"]] as const).map(([key, label]) => (
+        {([["threats", a.threatsTab], ["table", a.rosterTab]] as const).map(([key, label]) => (
           <button key={key}
             onClick={() => setTab(key)}
             className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
@@ -999,7 +1016,7 @@ function UpcomingPreviewSection({
         <div className="glass rounded-2xl p-8 text-center" style={{ border: "1px solid var(--border)" }}>
           <Activity className="w-8 h-8 mx-auto mb-3 opacity-20" />
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            No registered teams found yet — check back closer to the event date.
+            {a.noTeamsYet}
           </p>
         </div>
       ) : tab === "threats" ? (
@@ -1007,10 +1024,10 @@ function UpcomingPreviewSection({
           {/* Summary stats row — 4 cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Registered",  value: teams.length,                                          icon: <Users className="w-4 h-4" /> },
-              { label: "Top Score",   value: topScore > 1 ? topScore : "—",                        icon: <Trophy className="w-4 h-4" /> },
-              { label: "Field Avg",   value: fieldAvgScore > 0 ? Math.round(fieldAvgScore) : "—",  icon: <Activity className="w-4 h-4" /> },
-              { label: "Elite Threats", value: elites.length,                                       icon: <Flame className="w-4 h-4" /> },
+              { label: a.registeredLabel,    value: teams.length,                                          icon: <Users className="w-4 h-4" /> },
+              { label: a.topScoreLabel,      value: topScore > 1 ? topScore : "—",                        icon: <Trophy className="w-4 h-4" /> },
+              { label: a.fieldAvgLabel,      value: fieldAvgScore > 0 ? Math.round(fieldAvgScore) : "—",  icon: <Activity className="w-4 h-4" /> },
+              { label: a.eliteThreatsLabel,  value: elites.length,                                        icon: <Flame className="w-4 h-4" /> },
             ].map((s) => (
               <div key={s.label} className="glass rounded-xl p-3 text-center" style={{ border: "1px solid var(--border)" }}>
                 <div className="flex justify-center mb-1" style={{ color: "var(--accent)" }}>{s.icon}</div>
@@ -1023,34 +1040,34 @@ function UpcomingPreviewSection({
           {/* Your team banner */}
           {myEntry && myTier && (
             <div className="rounded-xl px-4 py-3"
-              style={{ background: TIER_CONFIG[myTier].bg, border: `1px solid ${TIER_CONFIG[myTier].border}` }}>
+              style={{ background: tierConfig[myTier].bg, border: `1px solid ${tierConfig[myTier].border}` }}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-xs font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>Your Team</div>
-                  <div className="font-black text-base" style={{ color: TIER_CONFIG[myTier].color }}>
+                  <div className="text-xs font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>{a.yourTeamLabel}</div>
+                  <div className="font-black text-base" style={{ color: tierConfig[myTier].color }}>
                     #{myEntry.teamNumber} · {myEntry.name}
                   </div>
                   {myEntry.matchesPlayed > 0 ? (
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
                       <span>{myEntry.wins}W-{myEntry.losses}L{myEntry.ties > 0 ? `-${myEntry.ties}T` : ""}</span>
                       <span>·</span>
-                      <span>{(myEntry.winRate * 100).toFixed(0)}% win rate</span>
-                      {myEntry.avgScore > 0 && <><span>·</span><span>Avg {myEntry.avgScore.toFixed(0)} pts</span></>}
-                      {myEntry.highScore > 0 && <><span>·</span><span>Peak {myEntry.highScore}</span></>}
-                      {myEntry.eventsPlayed > 0 && <><span>·</span><span>{myEntry.eventsPlayed} event{myEntry.eventsPlayed !== 1 ? "s" : ""}</span></>}
+                      <span>{a.winRateLabel.replace("{n}", (myEntry.winRate * 100).toFixed(0))}</span>
+                      {myEntry.avgScore > 0 && <><span>·</span><span>{a.avgPts.replace("{n}", myEntry.avgScore.toFixed(0))}</span></>}
+                      {myEntry.highScore > 0 && <><span>·</span><span>{a.peakLabel.replace("{n}", String(myEntry.highScore))}</span></>}
+                      {myEntry.eventsPlayed > 0 && <><span>·</span><span>{a.eventsLabel.replace("{n}", String(myEntry.eventsPlayed)).replace("{plural}", myEntry.eventsPlayed !== 1 ? "s" : "")}</span></>}
                     </div>
                   ) : (
-                    <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>No season data yet — this will be your first event</div>
+                    <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{a.noSeasonData}</div>
                   )}
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-xs px-2 py-0.5 rounded-full font-bold mb-1"
-                    style={{ background: TIER_CONFIG[myTier].bg, color: TIER_CONFIG[myTier].color, border: `1px solid ${TIER_CONFIG[myTier].border}` }}>
-                    {TIER_CONFIG[myTier].label}
+                    style={{ background: tierConfig[myTier].bg, color: tierConfig[myTier].color, border: `1px solid ${tierConfig[myTier].border}` }}>
+                    {tierConfig[myTier].label}
                   </div>
                   {myEntry.matchesPlayed > 0 && (
                     <>
-                      <div className="text-xs font-black" style={{ color: TIER_CONFIG[myTier].color }}>
+                      <div className="text-xs font-black" style={{ color: tierConfig[myTier].color }}>
                         {myStrength}<span className="font-normal text-[10px]" style={{ color: "var(--text-muted)" }}>/100</span>
                       </div>
                       {myPercentile !== null && myPercentile > 0 && (
@@ -1065,9 +1082,9 @@ function UpcomingPreviewSection({
               {myEntry.matchesPlayed > 0 && (
                 <div className="mt-2.5 space-y-1">
                   {[
-                    { label: "Win Rate", pct: myEntry.winRate * 100, refPct: fieldAvgWinRate * 100, color: TIER_CONFIG[myTier].color },
-                    { label: "Avg Score", pct: topAvg > 1 ? (myEntry.avgScore / topAvg) * 100 : 0, refPct: topAvg > 1 ? (fieldAvgScore / topAvg) * 100 : 0, color: "var(--accent-2)" },
-                    { label: "Peak Score", pct: topScore > 1 ? (myEntry.highScore / topScore) * 100 : 0, refPct: 0, color: "var(--accent)" },
+                    { label: a.winRateHeader, pct: myEntry.winRate * 100, refPct: fieldAvgWinRate * 100, color: tierConfig[myTier].color },
+                    { label: a.avgHeader, pct: topAvg > 1 ? (myEntry.avgScore / topAvg) * 100 : 0, refPct: topAvg > 1 ? (fieldAvgScore / topAvg) * 100 : 0, color: "var(--accent-2)" },
+                    { label: a.peakHeader, pct: topScore > 1 ? (myEntry.highScore / topScore) * 100 : 0, refPct: 0, color: "var(--accent)" },
                   ].map((bar) => (
                     <div key={bar.label}>
                       <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
@@ -1084,7 +1101,7 @@ function UpcomingPreviewSection({
                     </div>
                   ))}
                   <div className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-                    White marker = field average
+                    {a.whiteMarker}
                   </div>
                 </div>
               )}
@@ -1095,12 +1112,12 @@ function UpcomingPreviewSection({
           <div>
             <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5"
               style={{ color: "var(--text-muted)" }}>
-              <Swords className="w-3.5 h-3.5" /> Teams to Watch Out For
+              <Swords className="w-3.5 h-3.5" /> {a.teamsToWatch}
             </p>
             <div className="space-y-2.5">
               {threats.map((team, i) => {
                 const tier = threatTier(team, topScore, topAvg);
-                const cfg = TIER_CONFIG[tier];
+                const cfg = tierConfig[tier];
                 const score = strengthScore(team, topScore, topAvg);
                 const winPct = team.matchesPlayed > 0 ? (team.winRate * 100).toFixed(0) : null;
                 const aboveAvg = team.avgScore > fieldAvgScore;
@@ -1134,11 +1151,11 @@ function UpcomingPreviewSection({
                           </span>
                           {team.avgScore > 0 && <>
                             <span>·</span>
-                            <span>Avg: <span className="font-mono font-bold" style={{ color: aboveAvg ? "var(--warning)" : "inherit" }}>{team.avgScore.toFixed(0)}</span></span>
+                            <span>{a.avgLabel}: <span className="font-mono font-bold" style={{ color: aboveAvg ? "var(--warning)" : "inherit" }}>{team.avgScore.toFixed(0)}</span></span>
                           </>}
                           {team.highScore > 0 && <>
                             <span>·</span>
-                            <span>Peak: <span className="font-mono font-bold text-white">{team.highScore}</span></span>
+                            <span>{a.peakHeader}: <span className="font-mono font-bold text-white">{team.highScore}</span></span>
                           </>}
                           {team.eventsPlayed > 0 && <>
                             <span>·</span>
@@ -1146,7 +1163,7 @@ function UpcomingPreviewSection({
                           </>}
                         </div>
                       ) : (
-                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>No season data yet — fresh team or first event</span>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{a.noSeasonDataShort}</span>
                       )}
                     </div>
                     {/* Composite strength bars */}
@@ -1154,7 +1171,7 @@ function UpcomingPreviewSection({
                       <div className="w-28 shrink-0 space-y-1.5">
                         <div>
                           <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
-                            <span>Strength</span>
+                            <span>{a.strengthLabel}</span>
                             <span className="font-mono font-bold" style={{ color: cfg.color }}>{score}</span>
                           </div>
                           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
@@ -1164,7 +1181,7 @@ function UpcomingPreviewSection({
                         </div>
                         <div>
                           <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
-                            <span>Win%</span>
+                            <span>{a.winPctShort}</span>
                             <span className="font-mono">{winPct}%</span>
                           </div>
                           <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
@@ -1175,7 +1192,7 @@ function UpcomingPreviewSection({
                         {team.avgScore > 0 && (
                           <div>
                             <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
-                              <span>Avg</span>
+                              <span>{a.avgLabel}</span>
                               <span className="font-mono">{team.avgScore.toFixed(0)}</span>
                             </div>
                             <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
@@ -1196,21 +1213,21 @@ function UpcomingPreviewSection({
           {elites.length > 0 && (
             <div className="rounded-xl px-4 py-3 space-y-1.5"
               style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}>
-              <p className="text-xs font-bold" style={{ color: "#ef4444" }}>⚠ Scouting Alerts</p>
-              {elites.slice(0, 3).map((t) => {
-                const s = strengthScore(t, topScore, topAvg);
-                const avgAbove = t.avgScore > 0 && fieldAvgScore > 0
-                  ? ((t.avgScore - fieldAvgScore) / fieldAvgScore * 100).toFixed(0)
+              <p className="text-xs font-bold" style={{ color: "#ef4444" }}>{a.scoutingAlerts}</p>
+              {elites.slice(0, 3).map((thr) => {
+                const s = strengthScore(thr, topScore, topAvg);
+                const avgAbove = thr.avgScore > 0 && fieldAvgScore > 0
+                  ? ((thr.avgScore - fieldAvgScore) / fieldAvgScore * 100).toFixed(0)
                   : null;
                 return (
-                  <p key={t.teamNumber} className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    <span className="font-semibold text-white">#{t.teamNumber}</span>
-                    {" "}— Strength <span className="font-bold text-white">{s}/100</span>
-                    {" · "}{t.wins}W/{t.losses}L ({(t.winRate * 100).toFixed(0)}% WR)
-                    {t.avgScore > 0 && <>, avg <span className="font-mono text-white">{t.avgScore.toFixed(0)}</span> pts
-                      {avgAbove && parseInt(avgAbove) > 0 && <span style={{ color: "#ef4444" }}> (+{avgAbove}% above field)</span>}
+                  <p key={thr.teamNumber} className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span className="font-semibold text-white">#{thr.teamNumber}</span>
+                    {" "}— {a.strengthLabel} <span className="font-bold text-white">{s}/100</span>
+                    {" · "}{thr.wins}W/{thr.losses}L ({(thr.winRate * 100).toFixed(0)}% WR)
+                    {thr.avgScore > 0 && <>, avg <span className="font-mono text-white">{thr.avgScore.toFixed(0)}</span> pts
+                      {avgAbove && parseInt(avgAbove) > 0 && <span style={{ color: "#ef4444" }}> ({a.aboveField.replace("{n}", avgAbove)})</span>}
                     </>}
-                    {t.highScore > 0 && <>, peaked at <span className="font-mono text-white">{t.highScore}</span></>}.
+                    {thr.highScore > 0 && <>, {a.peaked.replace("{n}", String(thr.highScore))}</>}.
                   </p>
                 );
               })}
@@ -1221,13 +1238,13 @@ function UpcomingPreviewSection({
           {activeTeams.length > 0 && (
             <div className="glass rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
               <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
-                Field Strength Distribution
+                {a.strengthDist}
               </p>
               <div className="space-y-2">
                 {(["elite", "strong", "solid", "unknown"] as ThreatTier[]).map((tier) => {
-                  const count = teams.filter((t) => threatTier(t, topScore, topAvg) === tier).length;
+                  const count = teams.filter((thr) => threatTier(thr, topScore, topAvg) === tier).length;
                   const pct = (count / Math.max(teams.length, 1)) * 100;
-                  const cfg = TIER_CONFIG[tier];
+                  const cfg = tierConfig[tier];
                   return (
                     <div key={tier}>
                       <div className="flex justify-between text-xs mb-0.5">
@@ -1244,19 +1261,19 @@ function UpcomingPreviewSection({
               </div>
               <div className="mt-3 pt-3 grid grid-cols-2 gap-2 text-xs" style={{ borderTop: "1px solid var(--border)" }}>
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>Field Avg Score </span>
+                  <span style={{ color: "var(--text-muted)" }}>{a.fieldAvgScore} </span>
                   <span className="font-mono font-bold">{fieldAvgScore.toFixed(0)}</span>
                 </div>
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>Field Avg Win% </span>
+                  <span style={{ color: "var(--text-muted)" }}>{a.fieldAvgWinRate} </span>
                   <span className="font-mono font-bold">{(fieldAvgWinRate * 100).toFixed(0)}%</span>
                 </div>
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>Top Score </span>
+                  <span style={{ color: "var(--text-muted)" }}>{a.topScoreStat} </span>
                   <span className="font-mono font-bold">{topScore > 1 ? topScore : "—"}</span>
                 </div>
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>Teams with data </span>
+                  <span style={{ color: "var(--text-muted)" }}>{a.teamsWithData} </span>
                   <span className="font-mono font-bold">{activeTeams.length}/{teams.length}</span>
                 </div>
               </div>
@@ -1271,19 +1288,19 @@ function UpcomingPreviewSection({
               <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-muted)" }}>
                 <th className="text-left px-3 py-2.5 w-8">#</th>
                 <th className="text-left px-3 py-2.5">Team</th>
-                <th className="text-right px-3 py-2.5">Tier</th>
-                <th className="text-right px-3 py-2.5">W-L</th>
-                <th className="text-right px-3 py-2.5">Win%</th>
-                <th className="text-right px-3 py-2.5">Avg</th>
-                <th className="text-right px-3 py-2.5">Peak</th>
-                <th className="text-right px-3 py-2.5">Evts</th>
-                <th className="text-right px-3 py-2.5">Str.</th>
+                <th className="text-right px-3 py-2.5">{a.tierHeader}</th>
+                <th className="text-right px-3 py-2.5">{a.wlHeader}</th>
+                <th className="text-right px-3 py-2.5">{a.winRateHeader}</th>
+                <th className="text-right px-3 py-2.5">{a.avgHeader}</th>
+                <th className="text-right px-3 py-2.5">{a.peakHeader}</th>
+                <th className="text-right px-3 py-2.5">{a.evtsHeader}</th>
+                <th className="text-right px-3 py-2.5">{a.strHeader}</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((team, i) => {
                 const tier = threatTier(team, topScore, topAvg);
-                const cfg = TIER_CONFIG[tier];
+                const cfg = tierConfig[tier];
                 const score = strengthScore(team, topScore, topAvg);
                 const isMe = team.teamNumber === myTeam;
                 return (
@@ -1302,7 +1319,7 @@ function UpcomingPreviewSection({
                           {team.teamNumber}
                         </Link>
                         <span className="hidden sm:block text-[10px] truncate max-w-[120px]" style={{ color: "var(--text-muted)" }}>{team.name}</span>
-                        {isMe && <span className="text-[10px]" style={{ color: "var(--accent)" }}>◀ you</span>}
+                        {isMe && <span className="text-[10px]" style={{ color: "var(--accent)" }}>{a.youMarker}</span>}
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-right">
@@ -1352,7 +1369,7 @@ function UpcomingPreviewSection({
 
       {/* Disclaimer */}
       <p className="text-[10px] text-center" style={{ color: "var(--text-muted)" }}>
-        ⚡ Stats from completed events this season — preview only. Live analysis available once matches begin.
+        {a.previewDisclaimer}
       </p>
     </section>
   );
