@@ -31,13 +31,12 @@ export default function Navbar() {
         >
           <Image
             src="/logo.png"
-            alt="ScoutSelect logo"
+            alt="ScoutSelect"
             width={764}
             height={338}
-            className="h-7 w-auto object-contain"
+            className="h-10 w-auto object-contain"
             priority
           />
-          <span className="gradient-text">{t.nav.brand}</span>
         </Link>
 
         {/* Desktop nav */}

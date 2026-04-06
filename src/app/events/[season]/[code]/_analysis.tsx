@@ -17,7 +17,6 @@ import {
   type CaptainApproach, type AllianceMatchup,
 } from "@/lib/analytics";
 import { formatScore, seasonName, cn } from "@/lib/utils";
-import { useI18n } from "@/context/LanguageContext";
 
 // ─── Tiny helpers ─────────────────────────────────────────────────────────────
 
@@ -78,7 +77,6 @@ const PHASE_LABELS: Record<EventPhase, string> = {
 export default function EventAnalysisContent() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { t } = useI18n();
   const season = parseInt(params.season as string, 10);
   const code = (params.code as string).toUpperCase();
 
@@ -254,8 +252,8 @@ export default function EventAnalysisContent() {
           style={{ color: "var(--text-muted)" }}>
           <ArrowLeft className="w-4 h-4" />
           {searchParams.get("team")
-            ? t.eventAnalysis.backTeam.replace("{num}", searchParams.get("team")!)
-            : t.eventAnalysis.backEvents}
+            ? `Team ${searchParams.get("team")}`
+            : "Events"}
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-black truncate">
@@ -273,7 +271,7 @@ export default function EventAnalysisContent() {
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}>
             {PHASE_LABELS[activePhase]}
-            {manualPhase && <span style={{ color: "var(--warning)" }}>·manual</span>}
+            {manualPhase && <span style={{ color: "var(--warning)" }}> · manual</span>}
             <ChevronDown className="w-3 h-3 ml-1" style={{ color: "var(--text-muted)" }} />
           </button>
           {phaseMenuOpen && (

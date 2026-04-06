@@ -78,7 +78,7 @@ export default function Home() {
 
         {/* Free / unlimited pill */}
         <div className={`flex items-center justify-center gap-3 mb-10 animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
-          {["Free forever", "No sign-up", "Unlimited analyses"].map((label) => (
+          {t.home.pills.map((label) => (
             <span key={label} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium"
               style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)", border: "1px solid rgba(34,197,94,0.25)" }}>
               ✓ {label}
