@@ -181,8 +181,14 @@ export function simulateWinProbability(
   let totalMargin = 0;
   let closeCalls = 0;
 
+  const NOISE_FLOOR_PERCENTAGE = 0.05;
+  const MIN_STANDARD_DEVIATION = 1;
+
   const sample = (m: TeamMetrics) => {
-    const sd = Math.max(stddev(m.scores.length >= 2 ? m.scores : [m.totalExpected]), m.totalExpected * 0.05 + 1);
+    const sd = Math.max(
+      stddev(m.scores.length >= 2 ? m.scores : [m.totalExpected]),
+      m.totalExpected * NOISE_FLOOR_PERCENTAGE + MIN_STANDARD_DEVIATION
+    );
     return Math.max(0, m.totalExpected + (Math.random() - 0.5) * 2 * sd);
   };
 
