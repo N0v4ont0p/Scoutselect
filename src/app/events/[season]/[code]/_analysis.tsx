@@ -336,6 +336,7 @@ export default function EventAnalysisContent() {
             <PitchStrategySection
               myMetrics={myMetrics}
               approaches={pitchApproaches}
+              maxOPR={maxOPR}
             />
           )}
 
@@ -561,7 +562,7 @@ function AllianceBuilderSection({
 // ─── Pitch Strategy (being picked) ────────────────────────────────────────────
 
 function PitchStrategySection({
-  myMetrics, approaches,
+  myMetrics, approaches, maxOPR,
 }: {
   myMetrics: TeamMetrics;
   approaches: CaptainApproach[];
