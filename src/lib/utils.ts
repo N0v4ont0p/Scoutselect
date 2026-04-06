@@ -17,14 +17,14 @@ export function seasonName(season: number): string {
 
 /**
  * Returns the current FTC season year.
- * The FTC season starts in September each year.
+ * The FTC season starts in September each year (month index 8).
  * e.g. September 2025 → season 2025 (Decoded 2025-26)
  *      April 2026     → season 2025 (Decoded 2025-26)
  */
 export function getCurrentSeason(): number {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth(); // 0-indexed; August=7, September=8
+  const month = now.getMonth(); // 0-indexed; January=0 … August=7, September=8
   return month >= 8 ? year : year - 1;
 }
 
