@@ -251,6 +251,8 @@ export default function EventAnalysisContent() {
           className="flex items-center gap-1.5 text-sm shrink-0"
           style={{ color: "var(--text-muted)" }}>
           <ArrowLeft className="w-4 h-4" />
+          {/* Analysis content is intentionally always rendered in English
+              regardless of the app language setting. */}
           {searchParams.get("team")
             ? `Team ${searchParams.get("team")}`
             : "Events"}
