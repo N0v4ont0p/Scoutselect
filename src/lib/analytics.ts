@@ -337,6 +337,16 @@ export function simulateWinProbability(
 
 // ─── Picklist filters ─────────────────────────────────────────────────────────
 
+// ─── Picklist filter thresholds ───────────────────────────────────────────────
+const AUTO_HEAVY_THRESHOLD        = 0.32;  // auto score / total > this → "auto heavy"
+const TELEOP_HEAVY_THRESHOLD      = 0.50;  // teleop score / total > this → "teleop heavy"
+const ENDGAME_HEAVY_THRESHOLD     = 0.20;  // endgame score / total > this → "endgame heavy"
+const LOW_PENALTY_THRESHOLD       = 5;     // avg penalty pts below this → "low penalties"
+const HIGH_RELIABILITY_THRESHOLD  = 70;    // reliability index ≥ this → "high reliability"
+const HIGH_CEILING_SCORE_THRESHOLD= 80;    // total expected ≥ this → "high ceiling"
+const HIGH_CEILING_TREND_THRESHOLD= 5;     // or trend ≥ this → "high ceiling"
+const TRENDING_UP_THRESHOLD       = 3;     // trend ≥ this → "trending up"
+
 export type PicklistFilter =
   | 'ALL'
   | 'AUTO_HEAVY'
@@ -353,13 +363,13 @@ export function filterPicklist(picks: PickRecommendation[], filter: PicklistFilt
     const m = pick.metrics;
     const total = m.totalExpected || 1;
     switch (filter) {
-      case 'AUTO_HEAVY':      return m.expectedAuto / total > 0.32;
-      case 'TELEOP_HEAVY':    return m.expectedTeleop / total > 0.50;
-      case 'ENDGAME_HEAVY':   return m.expectedEndgame / total > 0.20;
-      case 'LOW_PENALTIES':   return m.expectedPenalties < 5;
-      case 'HIGH_RELIABILITY':return m.reliabilityIndex >= 70;
-      case 'HIGH_CEILING':    return m.totalExpected > 80 || m.trend > 5;
-      case 'TRENDING_UP':     return m.trend > 3;
+      case 'AUTO_HEAVY':      return m.expectedAuto / total > AUTO_HEAVY_THRESHOLD;
+      case 'TELEOP_HEAVY':    return m.expectedTeleop / total > TELEOP_HEAVY_THRESHOLD;
+      case 'ENDGAME_HEAVY':   return m.expectedEndgame / total > ENDGAME_HEAVY_THRESHOLD;
+      case 'LOW_PENALTIES':   return m.expectedPenalties < LOW_PENALTY_THRESHOLD;
+      case 'HIGH_RELIABILITY':return m.reliabilityIndex >= HIGH_RELIABILITY_THRESHOLD;
+      case 'HIGH_CEILING':    return m.totalExpected > HIGH_CEILING_SCORE_THRESHOLD || m.trend > HIGH_CEILING_TREND_THRESHOLD;
+      case 'TRENDING_UP':     return m.trend > TRENDING_UP_THRESHOLD;
       default:                return true;
     }
   });

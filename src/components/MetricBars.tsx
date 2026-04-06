@@ -5,7 +5,6 @@ interface MetricBarsProps {
   teleop: number;
   endgame: number;
   maxScore?: number;
-  showLabels?: boolean;
   animDelay?: number;
 }
 
@@ -44,8 +43,7 @@ function Bar({
   );
 }
 
-export function MetricBars({ auto, teleop, endgame, maxScore = 200, showLabels = true, animDelay = 0 }: MetricBarsProps) {
-  void showLabels;
+export function MetricBars({ auto, teleop, endgame, maxScore = 200, animDelay = 0 }: MetricBarsProps) {
   return (
     <div className="space-y-2">
       <Bar label="Auto"    value={auto}    max={maxScore} color="#3b82f6" delay={animDelay} />
