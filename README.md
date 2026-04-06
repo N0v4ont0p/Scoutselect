@@ -1,18 +1,26 @@
 <div align="center">
 
-# 🏆 ScoutSelect
+<br/>
 
-**Data-first alliance selection intelligence for FTC teams**
+# ⚡ ScoutSelect
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![FTCScout API](https://img.shields.io/badge/Powered%20by-FTCScout%20API-orange)](https://ftcscout.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+### Data-first alliance intelligence for FTC teams
 
-> ScoutSelect replaces manual scouting spreadsheets with a **mobile-first, data-driven** web app that uses the [FTCScout API](https://ftcscout.org) to give you real-time alliance selection recommendations — backed by Monte Carlo simulation, Bayesian statistics, and synergy analysis.
+**OPR · Monte Carlo · Synergy Scoring · Real-time Match Data**
 
-[Features](#-features) · [Getting Started](#-getting-started) · [API Endpoints](#-api-endpoints) · [Algorithm](#-algorithm) · [Deploy](#-deploy-to-render) · [Credits](#-credits)
+<br/>
+
+[![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![FTCScout API](https://img.shields.io/badge/FTCScout-API-orange)](https://ftcscout.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+<br/>
+
+> **ScoutSelect** replaces manual scouting spreadsheets with live, mathematically rigorous alliance analysis — powered exclusively by the [FTCScout API](https://ftcscout.org).
+
+<br/>
 
 </div>
 
@@ -21,27 +29,63 @@
 ## ✨ Features
 
 | Feature | Description |
-|---------|-------------|
-| 🤖 **Picking Mode** | SAFE / BALANCED / CEILING / COUNTER picklists with synergy scoring for alliance captains |
-| 🎯 **Getting Picked Mode** | Personalized pitches for each potential captain with talking points & red flags |
-| 📊 **Match Analytics** | Expected auto / teleop / endgame scores, reliability index, and trend sparklines |
-| 🎲 **Monte Carlo Simulation** | 1,000-run win probability estimates per alliance matchup |
-| 🏅 **Bracket Coach** | Real-time playoff bracket with simulated advancement probabilities |
-| ⚡ **Auto Phase Detection** | Automatically shows the right tools based on event stage (quals → selection → playoffs) |
-| 🔍 **Team & Event Search** | Find any FTC team or event globally by name or number |
-| 📱 **Mobile-First** | Designed for pit phones and tablets at competition — fast skeleton loaders throughout |
-| 🌐 **Any Region** | Works for every event FTCScout covers, worldwide |
-| 🔒 **Server-Side Caching** | Smart TTL cache keeps data fresh without abusing the API |
+|---|---|
+| **OPR Analytics** | True Offensive Power Ratings computed via least-squares regression (Gaussian elimination) across all qualification matches |
+| **Monte Carlo Simulation** | Win-probability estimates using Box-Muller Gaussian sampling — 500–1000 simulations per matchup |
+| **Bayesian Shrinkage** | Teams with fewer than 5 matches are shrunk toward the event median to prevent overconfidence on small samples |
+| **3-Component Synergy** | Role fingerprints in auto/teleop/endgame space — Euclidean distance drives complementarity, shared dominance creates overlap penalty |
+| **Picklist Modes** | 🛡 Safe · ⚖️ Balanced · 🚀 Ceiling · 🎯 Counter — each with different weight vectors |
+| **Picklist Filters** | Filter by Auto/TeleOp/Endgame heavy, Low penalties, High reliability, High ceiling, Trending up |
+| **Getting Picked Pitches** | Personalised data-backed pitch per top-4 captain with talking points, win-probability increase ring, and honest red flags |
+| **Sparkline Trends** | Inline SVG sparklines showing match-by-match score trajectory with trend direction dot |
+| **Phase Detection** | Auto-detects Quals Running → Alliance Selection → Playoffs Running → Complete and selects the right default tab |
+| **Bracket Coach** | Live playoff bracket tracking grouped by semifinal and final rounds |
+| **Smart Caching** | 90s TTL for live events, 24h for completed, 1h for team data — no API abuse |
+| **Mobile-first** | Designed for phones in the pit — glass cards, smooth animations, fast skeleton loaders |
 
 ---
 
-## 🏗 Tech Stack
+## 🧮 The Math
+
+### Offensive Power Rating (OPR)
+
+ScoutSelect solves the linear system using the **normal equations**:
 
 ```
-Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
-FTCScout GraphQL API  ← heavy queries (matches, rankings, stats)
-FTCScout REST API     ← team lookup, team search, event lookup
-In-memory cache       ← configurable TTLs (live: 90s, completed: 24h)
+A^T · A · x = A^T · b
+```
+
+Where:
+- `A[i][j] = 1` if team `j` played on the same alliance in match-side `i`
+- `b[i]` = score for that alliance in that match
+- `x` = OPR vector (solved via Gaussian elimination with partial pivoting)
+
+Computed separately for **total**, **auto**, **teleop**, and **endgame** components.
+
+### Synergy Score
+
+Each team is represented as a normalised role fingerprint:
+
+```
+fp = (auto/total, teleop/total, endgame/total)
+```
+
+Complementarity = `(Euclidean distance / √2) × 60`  
+Overlap penalty = `max(min overlap per phase) × 20`  
+Synergy = `combined_score + complementarity − overlap_penalty`
+
+### Monte Carlo Win Probability
+
+For each simulation:
+1. Sample each team's score from `N(μ, σ)` using Box-Muller transform
+2. Sum per alliance, compare
+3. Tally wins / upset risks across 500–1000 runs
+
+### Bayesian Shrinkage
+
+```
+α = min(matchCount, 5) / 5
+expectedScore = α × observed_mean + (1−α) × event_median
 ```
 
 ---
@@ -50,122 +94,61 @@ In-memory cache       ← configurable TTLs (live: 90s, completed: 24h)
 
 ### Prerequisites
 
-- **Node.js 18+**
-- **npm 9+** (or pnpm / yarn)
+- Node.js 18+
+- npm
 
-### Local Development
+### Run locally
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/N0v4ont0p/Scoutselect.git
+git clone https://github.com/N0v4ont0p/Scoutselect
 cd Scoutselect
-
-# 2. Install dependencies
 npm install
-
-# 3. Start the development server
 npm run dev
 ```
 
-Open **http://localhost:3000** in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Build for Production
+### Build for production
 
 ```bash
-npm run build   # compile + optimize
-npm start       # serve production build
+npm run build
+npm start
 ```
 
-### Run Tests
+### Run tests
 
 ```bash
 npm test
 ```
 
-> Tests cover: phase detection, metric calculations (OPR/Bayesian shrinkage), synergy scoring, and Monte Carlo simulation.
-
 ---
 
-## 🌐 API Endpoints
+## 🔧 Configuration
 
-All endpoints are served from `/api/` and implement server-side caching.
+### FTCScout API endpoints
 
-| Endpoint | Description | Cache TTL |
-|----------|-------------|-----------|
-| `GET /api/team/:teamNumber` | Team info (name, location, rookie year) | 1 hour |
-| `GET /api/team/:teamNumber/events?season=` | Events a team is attending for a given season | 1 hour |
-| `GET /api/event/:season/:code/matches` | All matches for an event | 90 s (live) / 24 h (completed) |
-| `GET /api/event/:season/:code/teams` | Rankings, stats, and team list | 90 s (live) / 24 h (completed) |
-| `GET /api/search/teams?q=` | Full-text team name / number search | 5 minutes |
+All API calls are proxied through Next.js API routes in `src/app/api/`. The upstream endpoints are configured in `src/lib/ftcscout.ts`:
 
-### FTCScout Configuration
-
-No API key is required — FTCScout is a public API.
-
-| Variable | Default |
-|----------|---------|
-| GraphQL endpoint | `https://api.ftcscout.org/graphql` |
-| REST base URL | `https://api.ftcscout.org/rest/v1` |
-
-These are configured in `src/lib/ftcscout.ts`. If you want to point at a self-hosted FTCScout instance, change the constants there.
-
----
-
-## 🔧 Caching Strategy
-
-ScoutSelect implements an in-memory TTL cache (`src/lib/cache.ts`) to respect FTCScout's rate-limit guidance (GraphQL preferred for large volumes):
-
-```
-Live event data  (matches, rankings)  →  90 seconds
-Completed event data                  →  24 hours
-Team info / search                    →  1 hour
+```ts
+const GRAPHQL_ENDPOINT = 'https://api.ftcscout.org/graphql';
+const REST_BASE        = 'https://api.ftcscout.org/rest/v1';
 ```
 
-On cache miss the server fetches fresh data from FTCScout; on error it returns the last cached value with a `stale: true` flag, so the UI can show "last updated X ago" rather than crashing.
+**GraphQL** is used for heavy pulls (matches, rankings, team stats).  
+**REST** is used for team search and simple lookups.
 
-Optional Redis support can be plugged into `cache.ts` by replacing the `Map` store with an `ioredis` client — the interface is identical.
+### Caching strategy
 
----
+Configured in `src/lib/cache.ts`:
 
-## 🧮 Algorithm
+| Data type | TTL |
+|---|---|
+| Live event matches/rankings | **90 seconds** |
+| Completed event data | **24 hours** |
+| Team info | **1 hour** |
+| Team search | **5 minutes** |
 
-### 1 · Team Performance Model
-
-Each team's stats are derived exclusively from FTCScout match data:
-
-- **Expected scores** per phase (auto / teleop / endgame / penalties) — mean of all qualification match contributions
-- **Bayesian shrinkage** — for teams with < 5 matches, scores are pulled toward the event median to prevent small-sample overconfidence
-- **Reliability Index** (0 – 100) — `100 − (coefficient of variation × 100)`, clamped; higher = more consistent
-- **Trend score** — exponentially-weighted mean favouring recent matches
-
-### 2 · Synergy Model
-
-For a captain + candidate pair:
-
-- Role fingerprint vector: (auto%, teleop%, endgame%, penalties, consistency)
-- **Complementarity score** — reward if candidate covers the captain's weak phases
-- **Overlap penalty** — penalise if both teams are dominant in the same phase
-
-### 3 · Monte Carlo Win Probability
-
-1,000 simulations per matchup; each run samples each team's score from `Normal(mean, stddev)`, sums alliance totals, and records the winner.
-
-Outputs: **win %**, **expected margin**, **upset risk** (% of sims within 10 pts).
-
-### 4 · Pick Modes
-
-| Mode | Optimises For |
-|------|---------------|
-| **Safe** | Reliability (50%) + score (30%) + synergy (20%) |
-| **Balanced** | Score (40%) + synergy (35%) + reliability (25%) |
-| **Ceiling** | Score (60%) + trend (20%) + synergy (20%) |
-| **Counter** | Auto (50%) + endgame (30%) + total (20%) |
-
-### 5 · Getting Picked Score
-
-`FitScore(team, captain)` = synergy with captain's fingerprint + Δwin% if team joins their alliance.
-
-Output: top 5 captains to pitch, "why they need you" bullets, strongest talking points, honest red flags.
+The cache is in-memory (per server process). On Render, each instance has its own cache — this is intentional and keeps the architecture simple and dependency-free.
 
 ---
 
@@ -174,126 +157,102 @@ Output: top 5 captains to pitch, "why they need you" bullets, strongest talking 
 ```
 src/
 ├── app/
-│   ├── page.tsx                          # Home — team/event search
-│   ├── dashboard/page.tsx                # Main 5-tab dashboard
+│   ├── page.tsx                         # Home — team search + season selector
+│   ├── dashboard/page.tsx               # Dashboard — 5-tab analytics UI
+│   ├── layout.tsx
+│   ├── globals.css                      # Design tokens + CSS animations
 │   └── api/
 │       ├── team/[teamNumber]/route.ts
 │       ├── team/[teamNumber]/events/route.ts
-│       ├── event/[season]/[code]/
-│       │   ├── matches/route.ts
-│       │   └── teams/route.ts
+│       ├── event/[season]/[code]/matches/route.ts
+│       ├── event/[season]/[code]/teams/route.ts
 │       └── search/teams/route.ts
 ├── components/
-│   ├── BracketView.tsx                   # Playoff bracket
-│   ├── MetricBars.tsx                    # Auto/teleop/endgame bars
-│   ├── PhaseIndicator.tsx                # Event phase badge
-│   ├── PicklistCard.tsx                  # Pick recommendation card
-│   ├── PitchCard.tsx                     # Alliance pitch card
-│   ├── SkeletonLoader.tsx                # Loading states
-│   ├── TeamCard.tsx                      # Team info card
-│   └── ui/                              # shadcn/ui primitives
+│   ├── SparkLine.tsx                    # SVG sparkline with area fill
+│   ├── MetricBars.tsx                   # Animated gradient phase bars
+│   ├── PicklistCard.tsx                 # Pick card with sparkline + OPR
+│   ├── PitchCard.tsx                    # Pitch card with win-probability ring
+│   ├── BracketView.tsx                  # Playoff bracket grouped by round
+│   ├── PhaseIndicator.tsx               # Pulsing live phase badge
+│   ├── TeamCard.tsx                     # Glass team info card
+│   └── SkeletonLoader.tsx               # Shimmer skeleton loaders
 └── lib/
-    ├── analytics.ts                      # Core analytics engine
-    ├── cache.ts                          # In-memory TTL cache
-    └── ftcscout.ts                       # FTCScout API client
+    ├── analytics.ts                     # OPR, metrics, synergy, Monte Carlo, picklist
+    ├── ftcscout.ts                      # GraphQL + REST API client
+    ├── cache.ts                         # In-memory TTL cache
+    └── utils.ts
 ```
 
 ---
 
-## 🚢 Deploy to Render
+## 🌐 Deploy on Render
 
-ScoutSelect is a standard Node.js web service and deploys to [Render](https://render.com) in minutes.
+ScoutSelect is a **Next.js web service** — it uses server-side API routes and cannot be deployed as a static site.
 
-### Option A — Web Service (recommended)
+### Step-by-step
 
-1. Push the repo to GitHub (already done ✅).
-2. Go to [render.com/new](https://dashboard.render.com/new) → **Web Service**.
+1. Push your code to a GitHub repository.
+
+2. Go to [render.com](https://render.com) → **New → Web Service**.
+
 3. Connect your GitHub repo.
+
 4. Fill in the settings:
 
-| Setting | Value |
-|---------|-------|
-| **Environment** | `Node` |
-| **Build Command** | `npm install && npm run build` |
-| **Start Command** | `npm start` |
-| **Instance Type** | Free (512 MB RAM) or Starter |
+   | Setting | Value |
+   |---|---|
+   | **Environment** | Node |
+   | **Build Command** | `npm install && npm run build` |
+   | **Start Command** | `npm start` |
+   | **Branch** | `main` |
 
-5. Click **Create Web Service**.  Render will build and deploy automatically. Every `git push` triggers a redeploy.
+5. Click **Create Web Service** — Render will build and deploy automatically.
 
-### Option B — Static Export (no server required)
+> **Free tier note:** On Render's free tier, the instance spins down after inactivity. The first load after spin-down takes ~30s. Upgrade to a paid plan for always-on hosting at competitions.
 
-Add `output: 'export'` to `next.config.mjs`:
+### Environment variables
 
-```js
-const nextConfig = { output: 'export' };
-export default nextConfig;
-```
-
-Then in Render → **Static Site**:
-
-| Setting | Value |
-|---------|-------|
-| **Build Command** | `npm install && npm run build` |
-| **Publish Directory** | `out` |
-
-> ⚠️ Static export disables API routes (server-side caching). Use **Option A** for the full experience.
-
-### Environment Variables (optional)
-
-No environment variables are required to run. If you add Redis caching later:
-
-| Variable | Example |
-|----------|---------|
-| `REDIS_URL` | `redis://red-xxxxx.render.com:6379` |
+No environment variables are required for basic operation. The FTCScout API is public and requires no API key.
 
 ---
 
-## 🧪 Tests
+## 🔬 Analytics accuracy
 
-```bash
-npm test
-```
+ScoutSelect is a **statistical estimation tool**, not an oracle. Results depend on:
 
-Coverage:
-- ✅ `detectEventPhase` — all 5 phases
-- ✅ `computeTeamMetrics` — zero matches, normal matches, DQ handling
-- ✅ `computeSynergy` — complementarity and overlap penalty
-- ✅ `generatePicklist` — sorting, captain exclusion, mode differences
-- ✅ `simulateWinProbability` — stronger alliance wins, equal alliances ~50 %
+- **Sample size** — OPR and averages become reliable after ~5+ qual matches
+- **Alliance composition** — OPR assumes scores are linear in team contributions (the standard assumption)
+- **Data availability** — FTCScout must have your event indexed
+
+All confidence scores are surfaced in the UI. Low-data warnings are shown on cards.
 
 ---
 
-## 📖 Methodology
+## 🛠 Tech stack
 
-ScoutSelect is data-first and transparent about its limitations:
-
-- All analytics come **exclusively** from FTCScout match data — no manual inputs, no scouting sheets.
-- Distributions and simulation replace point estimates wherever possible.
-- Reliability and trend are *inferred* from match data and are proxies, not ground truth.
-- Confidence scores shrink for teams with few matches — the UI shows a warning.
-- We do **not** claim to predict outcomes perfectly; we surface probabilities and contributing factors.
-
-See the **Methodology** tab in the dashboard for the full explanation shown to users.
-
----
-
-## 🤝 Credits
-
-ScoutSelect was designed and built by **FTC Team 19859**.
-
-> *"We built the tool we wished existed at our first regional."*
-
-- Data provided by the incredible [FTCScout.org](https://ftcscout.org) project — thank you for your public API!
-- UI components from [shadcn/ui](https://ui.shadcn.com)
-- Icons from [Lucide](https://lucide.dev)
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS 3 + custom CSS animations |
+| UI components | shadcn/ui (Radix primitives) |
+| Icons | lucide-react |
+| Data | FTCScout GraphQL + REST API |
+| Math | Pure TypeScript (no linear algebra library) |
+| Charts | Inline SVG (no chart library) |
+| Cache | In-memory Map with TTL |
+| Tests | Jest + ts-jest |
 
 ---
 
 <div align="center">
 
-**ScoutSelect** · MIT License · Made with ❤️ by FTC Team 19859
+<br/>
 
-*Not affiliated with FIRST® or FTCScout. All match data © respective event organisers.*
+Built with 🤖 by **[FTC Team 19859](https://ftcscout.org/teams/19859)**
+
+*ScoutSelect is not affiliated with or endorsed by FIRST or FTCScout.*
+
+<br/>
 
 </div>
-

@@ -8,18 +8,14 @@ const geist = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'ScoutSelect - FTC Alliance Selection Intelligence',
-  description: 'Data-driven alliance selection and scouting intelligence for FTC teams',
+  title: 'ScoutSelect — FTC Alliance Intelligence',
+  description: 'Data-driven alliance selection, OPR analytics, and Monte Carlo simulation for FTC teams',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={geist.className}>{children}</body>
+    <html lang="en" className="dark">
+      <body className={`${geist.className} min-h-screen bg-background text-foreground`}>{children}</body>
     </html>
   );
 }
