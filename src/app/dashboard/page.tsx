@@ -332,7 +332,7 @@ function DashboardContent() {
                     <Separator />
                     <div>
                       <p className="font-medium text-foreground mb-1">Monte Carlo Simulation</p>
-                      <p>1,000 simulations sampling from each team&apos;s score distribution (normal with their mean and stddev) to compute win probability and upset risk.</p>
+                      <p>1,000 simulations sampling from each team&apos;s score distribution (uniform ±1 stddev around mean) to compute win probability and upset risk.</p>
                     </div>
                     <Separator />
                     <div>

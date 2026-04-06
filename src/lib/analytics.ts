@@ -118,7 +118,9 @@ export function computeTeamMetrics(teamNumber: number, matches: Match[], teamNam
     let weightedSum = 0;
     let totalWeight = 0;
     for (let i = 0; i < totals.length; i++) {
-      const w = Math.pow(0.5, totals.length - 1 - i);
+      // Exponential decay: recent matches weighted more heavily (halved per step back)
+      const TREND_DECAY_FACTOR = 0.5;
+      const w = Math.pow(TREND_DECAY_FACTOR, totals.length - 1 - i);
       weightedSum += totals[i] * w;
       totalWeight += w;
     }
