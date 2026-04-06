@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ScoutSelect — FTC Alliance Intelligence
+
+Data-driven alliance selection for FTC (FIRST Tech Challenge) teams. ScoutSelect pulls live match data from the FTCScout public API and computes OPR, synergy scores, Monte Carlo win probabilities, and picklists.
+
+## Features
+
+- **OPR Analytics** — True offensive power ratings via Gaussian elimination across all qual matches
+- **Monte Carlo Sim** — Win-probability estimates using Box-Muller sampling (1,000 runs per matchup)
+- **Synergy Scoring** — Role fingerprints in auto/teleop/endgame space with complementarity scoring
+- **Picklist Generator** — Safe · Balanced · Ceiling · Counter modes with smart filters
+- **Phase Detection** — Auto-detects event phase and surfaces the most relevant analytics
+- **Live Data** — Powered by the FTCScout public API with smart TTL caching
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Build command:** `npm install && npm run build`
+**Start command:** `npm start`
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Framework:** Next.js 15 (App Router)
+- **Styling:** Tailwind CSS 4
+- **Icons:** Lucide React
+- **Data Source:** [FTCScout API](https://ftcscout.org)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Pages
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `/` — Landing page with team search
+- `/teams` — Team search
+- `/teams/[number]` — Team detail and event history
+- `/events` — Event lookup by code
+- `/events/[season]/[code]` — Event dashboard with rankings and picklists
+- `/seasons` — Season browser
+- `/seasons/[season]` — Season detail
+- `/compare` — Side-by-side team comparison
+- `/methodology` — Algorithm documentation
 
-## Deploy on Vercel
+## Built by
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+FTC Team 19859
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+Powered by [FTCScout API](https://ftcscout.org)
