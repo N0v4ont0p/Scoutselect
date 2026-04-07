@@ -79,11 +79,11 @@ function scoreFragment(season: number): string {
     return `
       scores {
         ... on MatchScores2020Trad {
-          red { totalPoints autoPoints dcPoints${egField} }
-          blue { totalPoints autoPoints dcPoints${egField} }
+          red { totalPointsNp autoPoints dcPoints${egField} }
+          blue { totalPointsNp autoPoints dcPoints${egField} }
         }
         ... on MatchScores2020Remote {
-          totalPoints autoPoints dcPoints${egField}
+          totalPointsNp autoPoints dcPoints${egField}
         }
       }`;
   }
@@ -91,11 +91,11 @@ function scoreFragment(season: number): string {
     return `
       scores {
         ... on MatchScores2021Trad {
-          red { totalPoints autoPoints dcPoints${egField} }
-          blue { totalPoints autoPoints dcPoints${egField} }
+          red { totalPointsNp autoPoints dcPoints${egField} }
+          blue { totalPointsNp autoPoints dcPoints${egField} }
         }
         ... on MatchScores2021Remote {
-          totalPoints autoPoints dcPoints${egField}
+          totalPointsNp autoPoints dcPoints${egField}
         }
       }`;
   }
@@ -103,8 +103,8 @@ function scoreFragment(season: number): string {
   return `
     scores {
       ... on MatchScores${season} {
-        red { totalPoints autoPoints dcPoints${egField} }
-        blue { totalPoints autoPoints dcPoints${egField} }
+        red { totalPointsNp autoPoints dcPoints${egField} }
+        blue { totalPointsNp autoPoints dcPoints${egField} }
       }
     }`;
 }
@@ -112,7 +112,7 @@ function scoreFragment(season: number): string {
 // ---------- Rankings stats fragment ----------
 // Returns inline fragments for TeamEventStats union (per-season types).
 function statsFragment(season: number): string {
-  const body = "rank wins losses ties rp tb1 qualMatchesPlayed max { totalPoints }";
+  const body = "rank wins losses ties rp tb1 qualMatchesPlayed max { totalPointsNp }";
   if (season === 2020) {
     return `... on TeamEventStats2020Trad { ${body} }\n... on TeamEventStats2020Remote { ${body} }`;
   }
@@ -124,7 +124,7 @@ function statsFragment(season: number): string {
 
 // ---------- Preview stats fragment (minimal, for batch queries) ----------
 function previewStatsFragment(season: number): string {
-  const body = "wins losses ties qualMatchesPlayed max { totalPoints } avg { totalPoints }";
+  const body = "wins losses ties qualMatchesPlayed max { totalPointsNp } avg { totalPointsNp }";
   if (season === 2020) {
     return `... on TeamEventStats2020Trad { ${body} }\n... on TeamEventStats2020Remote { ${body} }`;
   }
@@ -186,8 +186,8 @@ export async function getTeamsBatchSeasonStats(
       losses?: number;
       ties?: number;
       qualMatchesPlayed?: number;
-      max?: { totalPoints: number };
-      avg?: { totalPoints: number };
+      max?: { totalPointsNp: number };
+      avg?: { totalPointsNp: number };
     }
     interface RawTeam {
       number: number;
@@ -209,10 +209,10 @@ export async function getTeamsBatchSeasonStats(
         const losses = done.reduce((s, e) => s + (e.stats?.losses ?? 0), 0);
         const ties = done.reduce((s, e) => s + (e.stats?.ties ?? 0), 0);
         const played = done.reduce((s, e) => s + (e.stats?.qualMatchesPlayed ?? 0), 0);
-        const highScore = Math.max(0, ...done.map((e) => e.stats?.max?.totalPoints ?? 0));
+        const highScore = Math.max(0, ...done.map((e) => e.stats?.max?.totalPointsNp ?? 0));
         // Weighted average total score across all finished events
         const totalWeighted = done.reduce(
-          (s, e) => s + (e.stats?.avg?.totalPoints ?? 0) * (e.stats?.qualMatchesPlayed ?? 0),
+          (s, e) => s + (e.stats?.avg?.totalPointsNp ?? 0) * (e.stats?.qualMatchesPlayed ?? 0),
           0
         );
         const avgScore = played > 0 ? totalWeighted / played : 0;
@@ -369,6 +369,65 @@ export async function getSeasons(): Promise<number[]> {
   return [2019, 2020, 2021, 2022, 2023, 2024, 2025];
 }
 
+// ---------- Season events (for live/upcoming display and event search) ----------
+export interface FTCEventSummary {
+  season: number;
+  code: string;
+  name: string;
+  type: string;
+  city: string;
+  stateProv: string;
+  country: string;
+  start: string;
+  end: string;
+  ongoing: boolean;
+  finished: boolean;
+}
+
+export async function getSeasonEvents(season: number): Promise<FTCEventSummary[]> {
+  const q = `
+    query SeasonEvents($season: Int!) {
+      eventsSearch(season: $season) {
+        season
+        code
+        name
+        type
+        location { city state country }
+        start
+        end
+        ongoing
+        finished
+      }
+    }`;
+  interface SeasonEventsResult {
+    eventsSearch: {
+      season: number;
+      code: string;
+      name: string;
+      type: string;
+      location: { city: string; state: string; country: string };
+      start: string;
+      end: string;
+      ongoing: boolean;
+      finished: boolean;
+    }[];
+  }
+  const data = await gql<SeasonEventsResult>(q, { season });
+  return (data.eventsSearch ?? []).map((e) => ({
+    season: e.season,
+    code: e.code,
+    name: e.name,
+    type: e.type,
+    city: e.location.city,
+    stateProv: e.location.state,
+    country: e.location.country,
+    start: e.start,
+    end: e.end,
+    ongoing: e.ongoing,
+    finished: e.finished,
+  }));
+}
+
 export async function getEvent(season: number, code: string): Promise<FTCEvent> {
   const q = `
     query GetEvent($season: Int!, $code: String!) {
@@ -454,16 +513,19 @@ export async function getEventMatches(season: number, code: string): Promise<FTC
     const blue = sc?.blue ?? {};
 
     const egKey = season <= 2023 ? "egPoints" : null;
+    // Use no-penalty scores (totalPointsNp) so penalty-inflated scores don't skew analytics
+    const redNp = red.totalPointsNp ?? red.totalPoints ?? null;
+    const blueNp = blue.totalPointsNp ?? blue.totalPoints ?? null;
 
     return {
       matchNum: m.matchNum,
       series: m.series,
       tournamentLevel: m.tournamentLevel,
-      redScore: red.totalPoints ?? null,
-      blueScore: blue.totalPoints ?? null,
+      redScore: redNp,
+      blueScore: blueNp,
       redTeams,
       blueTeams,
-      totalPoints: (red.totalPoints ?? 0) + (blue.totalPoints ?? 0),
+      totalPoints: (redNp ?? 0) + (blueNp ?? 0),
       autoPoints: (red.autoPoints ?? 0) + (blue.autoPoints ?? 0),
       dcPoints: (red.dcPoints ?? 0) + (blue.dcPoints ?? 0),
       endgamePoints: egKey ? (red[egKey] ?? 0) + (blue[egKey] ?? 0) : 0,
@@ -500,7 +562,7 @@ interface RankingsQueryResult {
         rp: number;
         tb1: number;
         qualMatchesPlayed: number;
-        max: { totalPoints: number };
+        max: { totalPointsNp: number };
       } | null;
     }[];
   };
@@ -530,7 +592,7 @@ export async function getEventRankings(season: number, code: string): Promise<FT
       ties: t.stats!.ties,
       rp: t.stats!.rp,
       tbp: t.stats!.tb1,
-      highScore: t.stats!.max?.totalPoints ?? 0,
+      highScore: t.stats!.max?.totalPointsNp ?? 0,
       matchesPlayed: t.stats!.qualMatchesPlayed,
     }))
     .sort((a, b) => a.rank - b.rank);
