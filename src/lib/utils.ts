@@ -44,3 +44,7 @@ export function percentile(sorted: number[], p: number): number {
   const hi = Math.ceil(idx);
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
 }
+
+export function formatPercent(fraction: number, decimals = 0): string {
+  return `${(fraction * 100).toFixed(decimals)}%`;
+}
