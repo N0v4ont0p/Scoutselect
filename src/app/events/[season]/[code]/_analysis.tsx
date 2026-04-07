@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Users, Zap, Target, TrendingUp, TrendingDown, Minus,
   ChevronDown, AlertTriangle, CheckCircle, Shield, Star, Eye, Flame,
-  Activity, Trophy, Swords,
+  Activity, Trophy, Swords, Printer,
 } from "lucide-react";
 import type { FTCMatch, FTCRanking, PreviewTeam } from "@/lib/ftcscout";
 import {
@@ -15,9 +15,15 @@ import {
   computeMatchups, estimateNumAlliances,
   type TeamMetrics, type EventPhase, type DraftAwarePickOption,
   type CaptainApproach, type AllianceMatchup,
+  type MonteCarloScenario, type CaptainArchetype,
 } from "@/lib/analytics";
 import { formatScore, seasonName, cn } from "@/lib/utils";
 import { useI18n } from "@/context/LanguageContext";
+import { TrustBadge } from "@/components/TrustBadge";
+import { AllianceBoardExport } from "@/components/AllianceBoardExport";
+import {
+  getEventSettings, setEventSettings,
+} from "@/lib/localStorage";
 
 // ─── Tiny helpers ─────────────────────────────────────────────────────────────
 
@@ -91,6 +97,11 @@ export default function EventAnalysisContent() {
   const [manualPhase, setManualPhase] = useState<EventPhase | null>(null);
   const [phaseMenuOpen, setPhaseMenuOpen] = useState(false);
 
+  // Monte Carlo scenario + captain archetype (persisted per event)
+  const [scenario, setScenario] = useState<MonteCarloScenario>("nominal");
+  const [archetype, setArchetype] = useState<CaptainArchetype>("balanced");
+  const [showExport, setShowExport] = useState(false);
+
   const [matches, setMatches] = useState<FTCMatch[]>([]);
   const [rankings, setRankings] = useState<FTCRanking[]>([]);
   const [eventName, setEventName] = useState<string>("");
@@ -100,6 +111,18 @@ export default function EventAnalysisContent() {
   // Preview data for upcoming events
   const [previewTeams, setPreviewTeams] = useState<PreviewTeam[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Load persisted scenario + archetype for this event
+  useEffect(() => {
+    const saved = getEventSettings(season, code);
+    setScenario(saved.scenario);
+    setArchetype(saved.archetype);
+  }, [season, code]);
+
+  // Persist when scenario/archetype changes
+  useEffect(() => {
+    setEventSettings(season, code, { scenario, archetype });
+  }, [season, code, scenario, archetype]);
 
   // ── Fetch data ─────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -188,7 +211,8 @@ export default function EventAnalysisContent() {
           myRole.rank,
           captainMetricsList,
           availablePool,
-          6
+          6,
+          archetype
         )
       : [];
 
@@ -222,7 +246,7 @@ export default function EventAnalysisContent() {
 
   const matchups: AllianceMatchup[] =
     projectedAlliance.length >= 2 && opponentAlliances.length
-      ? computeMatchups(projectedAlliance, opponentAlliances, 2000)
+      ? computeMatchups(projectedAlliance, opponentAlliances, 2000, scenario)
       : [];
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -300,6 +324,17 @@ export default function EventAnalysisContent() {
             </div>
           )}
         </div>
+
+        {/* Export button */}
+        {myMetrics && (
+          <button
+            onClick={() => setShowExport(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0"
+            style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}>
+            <Printer className="w-3.5 h-3.5" />
+            {t.export.exportBtn}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -346,6 +381,14 @@ export default function EventAnalysisContent() {
       {submittedTeam && myMetrics && myRanking && myRole && (
         <>
           <RoleBanner role={myRole} teamNumber={submittedTeam} phase={activePhase} />
+
+          {/* Scenario + archetype controls */}
+          <ScenarioArchetypeBar
+            scenario={scenario}
+            onScenario={setScenario}
+            archetype={archetype}
+            onArchetype={setArchetype}
+          />
 
           {/* Captain section */}
           {(myRole.role === "captain" || myRole.role === "borderline") && captainPicks.length > 0 && (
@@ -400,6 +443,89 @@ export default function EventAnalysisContent() {
           eventName={eventName || code}
         />
       )}
+
+      {/* Alliance Board Export modal */}
+      {showExport && myMetrics && (
+        <AllianceBoardExport
+          season={season}
+          code={code}
+          eventName={eventName || code}
+          myMetrics={myMetrics}
+          picks={captainPicks}
+          matchups={matchups}
+          allMetrics={allMetrics}
+          onClose={() => setShowExport(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Scenario + Archetype Control Bar ────────────────────────────────────────
+
+function ScenarioArchetypeBar({
+  scenario, onScenario, archetype, onArchetype,
+}: {
+  scenario: MonteCarloScenario;
+  onScenario: (s: MonteCarloScenario) => void;
+  archetype: CaptainArchetype;
+  onArchetype: (a: CaptainArchetype) => void;
+}) {
+  const { t } = useI18n();
+  const a = t.analysis;
+  const scenarios: MonteCarloScenario[] = ["optimistic", "nominal", "pessimistic"];
+  const scenarioLabels: Record<MonteCarloScenario, string> = {
+    optimistic: a.mcOptimistic,
+    nominal: a.mcNominal,
+    pessimistic: a.mcPessimistic,
+  };
+  const archetypes: CaptainArchetype[] = ["balanced", "auto_heavy", "ceiling", "safe"];
+  const archetypeLabels: Record<CaptainArchetype, string> = {
+    balanced: a.archetypeBalanced,
+    auto_heavy: a.archetypeAutoHeavy,
+    ceiling: a.archetype_ceiling,
+    safe: a.archetypeSafe,
+  };
+
+  return (
+    <div className="glass rounded-xl px-4 py-3 flex flex-wrap gap-4 items-center"
+      style={{ border: "1px solid var(--border)" }}>
+      {/* MC Scenario */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{a.mcScenario}</span>
+        <div className="flex gap-1">
+          {scenarios.map((s) => (
+            <button key={s}
+              onClick={() => onScenario(s)}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors"
+              style={{
+                background: scenario === s ? "var(--accent)" : "var(--surface-2)",
+                color: scenario === s ? "#fff" : "var(--text-muted)",
+                border: `1px solid ${scenario === s ? "var(--accent)" : "var(--border)"}`,
+              }}>
+              {scenarioLabels[s]}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Archetype */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{a.archetypeLabel}</span>
+        <div className="flex gap-1 flex-wrap">
+          {archetypes.map((arc) => (
+            <button key={arc}
+              onClick={() => onArchetype(arc)}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors"
+              style={{
+                background: archetype === arc ? "rgba(139,92,246,0.25)" : "var(--surface-2)",
+                color: archetype === arc ? "var(--accent-2)" : "var(--text-muted)",
+                border: `1px solid ${archetype === arc ? "rgba(139,92,246,0.5)" : "var(--border)"}`,
+              }}>
+              {archetypeLabels[arc]}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -469,6 +595,46 @@ function RoleBanner({ role, phase }: { role: ReturnType<typeof determineRole>; t
 
 // ─── Alliance Builder (captain) ───────────────────────────────────────────────
 
+function RoleCoverageBars({ synergy }: { synergy: import("@/lib/analytics").SynergyResult }) {
+  const { t } = useI18n();
+  const a = t.analysis;
+  const axes: { key: "auto" | "dc" | "endgame"; label: string; ci: number; pi: number }[] = [
+    { key: "auto",     label: a.axisAuto,    ci: synergy.captainFingerprint[0], pi: synergy.pickFingerprint[0] },
+    { key: "dc",       label: a.axisDc,      ci: synergy.captainFingerprint[1], pi: synergy.pickFingerprint[1] },
+    { key: "endgame",  label: a.axisEndgame, ci: synergy.captainFingerprint[2], pi: synergy.pickFingerprint[2] },
+  ];
+  return (
+    <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: "1px solid var(--border)" }}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+        {a.roleCoverageTitle}
+        {synergy.gapFilledAxis && (
+          <span className="ml-2 normal-case" style={{ color: "var(--success)" }}>
+            · {a.fills.replace("{axis}", axisName(synergy.gapFilledAxis, a))}
+          </span>
+        )}
+      </p>
+      {axes.map(({ key, label, ci, pi }) => (
+        <div key={key}>
+          <div className="flex justify-between text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>
+            <span>{label}</span>
+            <span>{(ci * 100).toFixed(0)}% / {(pi * 100).toFixed(0)}%</span>
+          </div>
+          <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+            <div style={{ width: `${ci * 50}%`, background: "var(--accent)", borderRadius: "999px 0 0 999px" }} />
+            <div style={{ width: `${pi * 50}%`, background: "var(--accent-2)", borderRadius: "0 999px 999px 0" }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function axisName(axis: "auto" | "dc" | "endgame", a: { axisAuto: string; axisDc: string; axisEndgame: string }) {
+  if (axis === "auto") return a.axisAuto;
+  if (axis === "dc") return a.axisDc;
+  return a.axisEndgame;
+}
+
 function AllianceBuilderSection({
   myMetrics, picks, matchups, maxOPR, season,
 }: {
@@ -495,7 +661,10 @@ function AllianceBuilderSection({
       <div className="glass rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{a.yourRobot}</span>
-          <span className="font-black text-lg" style={{ color: "var(--accent)" }}>#{myMetrics.teamNumber}</span>
+          <div className="flex items-center gap-2">
+            <TrustBadge metrics={myMetrics} />
+            <span className="font-black text-lg" style={{ color: "var(--accent)" }}>#{myMetrics.teamNumber}</span>
+          </div>
         </div>
         <MetricRow label={a.opr} value={myMetrics.opr} max={maxOPR} />
         <MetricRow label={a.autoAvg} value={myMetrics.avgAuto} max={maxOPR / 2} />
@@ -521,8 +690,16 @@ function AllianceBuilderSection({
               </span>
               <span style={{ color: top.availableForPick1 ? "var(--success)" : "var(--warning)" }}
                 className="text-xs">{top.availabilityTag}</span>
+              {top.sensitivityTag !== "unknown" && (
+                <span className="text-[10px]" style={{ color: top.sensitivityTag === "robust" ? "var(--success)" : "var(--warning)" }}>
+                  {top.sensitivityTag === "robust" ? a.sensitivityRobust : a.sensitivityFragile}
+                </span>
+              )}
             </div>
-            <span className="font-black text-xl" style={{ color: "var(--accent)" }}>#{top.teamNumber}</span>
+            <div className="flex items-center gap-2">
+              <TrustBadge metrics={top.metrics} showStd={false} />
+              <span className="font-black text-xl" style={{ color: "var(--accent)" }}>#{top.teamNumber}</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-1.5 mb-3 mt-2">
@@ -536,6 +713,9 @@ function AllianceBuilderSection({
           <MetricRow label={a.auto} value={top.metrics.avgAuto} max={maxOPR / 2} />
           <MetricRow label={a.teleop} value={top.metrics.avgDc} max={maxOPR / 2} />
           {showEg && <MetricRow label={a.endgame} value={top.metrics.avgEndgame} max={maxOPR / 3} />}
+
+          {/* Role coverage bars */}
+          <RoleCoverageBars synergy={top.synergy} />
 
           {top.bestPick2 && (
             <div className="mt-3 pt-3 text-sm" style={{ borderTop: "1px solid var(--border)" }}>
@@ -568,6 +748,11 @@ function AllianceBuilderSection({
                   {p.availabilityTag}
                 </span>
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>{p.label}</span>
+                {p.sensitivityTag !== "unknown" && (
+                  <span className="text-[10px] shrink-0" style={{ color: p.sensitivityTag === "robust" ? "var(--success)" : "var(--warning)" }}>
+                    {p.sensitivityTag === "robust" ? a.sensitivityRobust : a.sensitivityFragile}
+                  </span>
+                )}
                 <span className="ml-auto text-xs font-mono">{p.allianceStrength.toFixed(1)}</span>
               </div>
             ))}
@@ -582,8 +767,10 @@ function AllianceBuilderSection({
             style={{ color: "var(--text-muted)" }}>{a.winProbTitle}</p>
           <div className="space-y-2">
             {matchups.map((m) => {
-              const pct = m.winProbability * 100;
-              const col = pct >= 55 ? "var(--success)" : pct >= 45 ? "var(--warning)" : "var(--danger)";
+              const pct = (m.winProbability * 100).toFixed(0);
+              const ci = (m.winProbabilityCI * 100).toFixed(0);
+              const numPct = m.winProbability * 100;
+              const col = numPct >= 55 ? "var(--success)" : numPct >= 45 ? "var(--warning)" : "var(--danger)";
               return (
                 <div key={m.opponentCaptain}>
                   <div className="flex justify-between text-xs mb-1">
@@ -593,9 +780,11 @@ function AllianceBuilderSection({
                         ? <span style={{ color: "var(--success)" }}> {a.strPos.replace("{n}", m.strengthDelta.toFixed(0))}</span>
                         : <span style={{ color: "var(--danger)" }}> {a.strNeg.replace("{n}", m.strengthDelta.toFixed(0))}</span>}
                     </span>
-                    <span className="font-bold" style={{ color: col }}>{a.winPct.replace("{n}", pct.toFixed(0))}</span>
+                    <span className="font-bold" style={{ color: col }}>
+                      {a.winProbCI.replace("{win}", pct).replace("{ci}", ci)}
+                    </span>
                   </div>
-                  <Bar pct={pct} color={col} />
+                  <Bar pct={numPct} color={col} />
                 </div>
               );
             })}
