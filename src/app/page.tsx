@@ -123,28 +123,36 @@ export default function Home() {
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
       {/* ── Hero ── */}
-      <section className="max-w-4xl mx-auto px-4 pt-10 pb-6 text-center">
+      <section className="relative max-w-4xl mx-auto px-4 pt-10 pb-5 text-center overflow-hidden">
+        {/* Subtle radial glow behind headline */}
+        <div
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background: "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(99,102,241,0.12) 0%, transparent 70%)",
+          }}
+        />
+
         {/* Badge */}
         <div
-          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6 animate-fade-in ${mounted ? "" : "opacity-0"}`}
+          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-5 animate-fade-in ${mounted ? "" : "opacity-0"}`}
           style={{ background: "rgba(99,102,241,0.15)", color: "var(--accent)", border: "1px solid rgba(99,102,241,0.3)" }}>
           <Zap className="w-3 h-3 animate-pulse-glow" style={{ animationDuration: "2s" }} />
           {t.home.badge}
         </div>
 
         {/* Headline */}
-        <h1 className={`text-5xl sm:text-7xl font-black mb-4 leading-tight animate-slide-up stagger-1 ${mounted ? "" : "opacity-0"}`}>
+        <h1 className={`text-5xl sm:text-7xl font-black mb-3 leading-tight animate-slide-up stagger-1 ${mounted ? "" : "opacity-0"}`}>
           <span className="gradient-text">{t.home.headline}</span>
         </h1>
 
         <p
-          className={`text-lg sm:text-xl mb-6 max-w-2xl mx-auto animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}
+          className={`text-lg sm:text-xl mb-5 max-w-2xl mx-auto animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}
           style={{ color: "var(--text-muted)" }}>
           {t.home.subheadline}
         </p>
 
         {/* Pills */}
-        <div className={`flex items-center justify-center gap-3 mb-6 animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
+        <div className={`flex items-center justify-center gap-2 mb-5 flex-wrap animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
           {t.home.pills.map((label) => (
             <span
               key={label}
@@ -157,7 +165,7 @@ export default function Home() {
 
         {/* ── Team Search ── */}
         <div
-          className={`relative max-w-lg mx-auto mb-3 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
+          className={`relative max-w-lg mx-auto mb-2 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
           style={{ zIndex: 60 }}>
           <div
             className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
@@ -208,7 +216,7 @@ export default function Home() {
 
         {/* ── Event Search ── */}
         <div
-          className={`relative max-w-lg mx-auto mb-8 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
+          className={`relative max-w-lg mx-auto mb-5 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
           style={{ zIndex: 50 }}>
           <div className="flex gap-2">
             <div
@@ -278,11 +286,56 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Live / Upcoming Events ── */}
+      {/* ── Quick Links ── (now directly below search) */}
+      <section className="max-w-4xl mx-auto px-4 pb-3">
+        <div className="grid sm:grid-cols-3 gap-2">
+          <Link
+            href="/events"
+            className="glass glass-hover rounded-2xl p-4 flex items-center gap-3 group"
+            style={{ border: "1px solid var(--border)" }}>
+            <div className="p-2 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
+              <Calendar className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">{t.home.quickLinks.events}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.eventsDesc}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+          </Link>
+          <Link
+            href="/teams"
+            className="glass glass-hover rounded-2xl p-4 flex items-center gap-3 group"
+            style={{ border: "1px solid var(--border)" }}>
+            <div className="p-2 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
+              <Users className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">{t.home.quickLinks.teams}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.teamsDesc}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+          </Link>
+          <Link
+            href="/compare"
+            className="glass glass-hover rounded-2xl p-4 flex items-center gap-3 group"
+            style={{ border: "1px solid var(--border)" }}>
+            <div className="p-2 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
+              <BarChart2 className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">{t.home.quickLinks.compare}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.compareDesc}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+          </Link>
+        </div>
+      </section>
+
+      {/* ── Live / Upcoming Events ── (now below quick links, snug) */}
       {(liveLoading || showLiveSection) && (
-        <section className="max-w-4xl mx-auto px-4 pb-8">
+        <section className="max-w-4xl mx-auto px-4 pt-3 pb-6">
           {liveLoading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-6">
               <div
                 className="w-5 h-5 border-2 rounded-full animate-spin"
                 style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
@@ -290,31 +343,31 @@ export default function Home() {
           ) : (
             <>
               {liveEvents.length > 0 && (
-                <div className="mb-8">
+                <div className="mb-4">
                   <h2
-                    className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2"
+                    className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2"
                     style={{ color: "var(--danger)" }}>
                     <span
                       className="w-2 h-2 rounded-full animate-pulse"
                       style={{ background: "var(--danger)" }} />
                     {t.home.liveNow}
                   </h2>
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="grid sm:grid-cols-2 gap-2">
                     {liveEvents.map((ev) => (
                       <Link
                         key={ev.code}
                         href={`/events/${liveSeason}/${ev.code}`}
-                        className="glass glass-hover rounded-2xl p-4 flex items-center justify-between group"
+                        className="glass glass-hover rounded-2xl p-3.5 flex items-center justify-between group"
                         style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
                         <div className="min-w-0">
                           <p className="font-bold text-sm truncate">{ev.name}</p>
-                          <div className="flex items-center gap-1 mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                          <div className="flex items-center gap-1 mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
                             <MapPin className="w-3 h-3" />{ev.city}, {ev.stateProv}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-3">
                           <span
-                            className="text-xs font-semibold px-2 py-1 rounded-full"
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
                             style={{ color: "var(--danger)", background: "rgba(239,68,68,0.12)" }}>
                             🔴 Live
                           </span>
@@ -329,22 +382,22 @@ export default function Home() {
               )}
 
               {upcomingEvents.length > 0 && (
-                <div className="mb-8">
+                <div>
                   <h2
-                    className="text-xs font-bold uppercase tracking-widest mb-4"
+                    className="text-xs font-bold uppercase tracking-widest mb-3"
                     style={{ color: "var(--text-muted)" }}>
                     {t.home.upcomingEvents}
                   </h2>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {upcomingEvents.slice(0, 6).map((ev) => (
                       <Link
                         key={ev.code}
                         href={`/events/${liveSeason}/${ev.code}`}
-                        className="glass glass-hover rounded-2xl p-4 flex items-center justify-between group"
+                        className="glass glass-hover rounded-2xl p-3.5 flex items-center justify-between group"
                         style={{ border: "1px solid var(--border)" }}>
                         <div className="min-w-0">
                           <p className="font-bold text-sm truncate">{ev.name}</p>
-                          <div className="flex items-center gap-1 mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                          <div className="flex items-center gap-1 mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
                             <MapPin className="w-3 h-3" />{ev.city}, {ev.stateProv}
                             <span className="mx-1">·</span>
                             <Calendar className="w-3 h-3" />
@@ -364,71 +417,31 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── Quick Links ── */}
-      <section className="max-w-4xl mx-auto px-4 pb-6">
-        <div className="grid sm:grid-cols-3 gap-3">
-          <Link
-            href="/events"
-            className="glass glass-hover rounded-2xl p-5 flex items-center gap-3 group"
-            style={{ border: "1px solid var(--border)" }}>
-            <div className="p-2.5 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
-              <Calendar className="w-5 h-5" style={{ color: "var(--accent)" }} />
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm">{t.home.quickLinks.events}</p>
-              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.eventsDesc}</p>
-            </div>
-            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
-          </Link>
-          <Link
-            href="/teams"
-            className="glass glass-hover rounded-2xl p-5 flex items-center gap-3 group"
-            style={{ border: "1px solid var(--border)" }}>
-            <div className="p-2.5 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
-              <Users className="w-5 h-5" style={{ color: "var(--accent)" }} />
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm">{t.home.quickLinks.teams}</p>
-              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.teamsDesc}</p>
-            </div>
-            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
-          </Link>
-          <Link
-            href="/compare"
-            className="glass glass-hover rounded-2xl p-5 flex items-center gap-3 group"
-            style={{ border: "1px solid var(--border)" }}>
-            <div className="p-2.5 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
-              <BarChart2 className="w-5 h-5" style={{ color: "var(--accent)" }} />
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm">{t.home.quickLinks.compare}</p>
-              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.compareDesc}</p>
-            </div>
-            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
-          </Link>
-        </div>
-      </section>
-
       {/* ── Feature Cards ── */}
-      <section className="max-w-4xl mx-auto px-4 pb-10">
-        <h2
-          className="text-xs font-bold uppercase tracking-widest mb-4"
-          style={{ color: "var(--text-muted)" }}>
-          {t.home.featuresTitle}
-        </h2>
-        <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left ${mounted ? "" : "opacity-0"}`}>
+      <section className="max-w-4xl mx-auto px-4 pb-8">
+        <div
+          className="flex items-center gap-3 mb-4">
+          <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+          <h2
+            className="text-xs font-bold uppercase tracking-widest px-2"
+            style={{ color: "var(--text-muted)" }}>
+            {t.home.featuresTitle}
+          </h2>
+          <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+        </div>
+        <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-left ${mounted ? "" : "opacity-0"}`}>
           {featureData.map((f, i) => (
             <div
               key={f.key}
-              className="glass glass-hover rounded-2xl p-5 animate-fade-in"
-              style={{ animationDelay: `${0.1 + i * 0.07}s`, opacity: 0, animationFillMode: "forwards" }}>
-              <div className="flex items-center gap-2 mb-2.5" style={{ color: "var(--accent)" }}>
+              className="glass glass-hover rounded-2xl p-4 animate-fade-in"
+              style={{ animationDelay: `${0.1 + i * 0.07}s`, opacity: 0, animationFillMode: "forwards", borderLeft: "2px solid rgba(99,102,241,0.25)" }}>
+              <div className="flex items-center gap-2 mb-2" style={{ color: "var(--accent)" }}>
                 <div className="p-1.5 rounded-lg" style={{ background: "rgba(99,102,241,0.12)" }}>
                   {f.icon}
                 </div>
                 <span className="font-semibold text-sm">{t.home.features[f.key].title}</span>
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 {t.home.features[f.key].desc}
               </p>
             </div>
@@ -437,21 +450,21 @@ export default function Home() {
       </section>
 
       {/* ── Season Links ── */}
-      <section className="max-w-4xl mx-auto px-4 pb-16 text-center">
+      <section className="max-w-4xl mx-auto px-4 pb-14 text-center">
         <h2
-          className="text-sm font-semibold uppercase tracking-widest mb-4"
+          className="text-xs font-bold uppercase tracking-widest mb-3"
           style={{ color: "var(--text-muted)" }}>
           {t.home.seasonsTitle}
         </h2>
-        <div className="flex flex-wrap gap-2 justify-center">
+        <div className="flex flex-wrap gap-1.5 justify-center">
           {SEASONS.slice().reverse().map((s, i) => (
             <Link
               key={s}
               href={`/seasons/${s}`}
-              className="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 hover:border-[--accent]"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 hover:scale-105 hover:border-[--accent] hover:text-white"
               style={{
                 background: "var(--surface-2)",
-                color: "var(--text)",
+                color: "var(--text-muted)",
                 border: "1px solid var(--border)",
                 animationDelay: `${i * 0.05}s`,
               }}>
