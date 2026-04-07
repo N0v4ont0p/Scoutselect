@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type React from "react";
 import Link from "next/link";
 import {
   Search, Zap, BarChart2, Target, Users, TrendingUp,
@@ -55,6 +56,15 @@ export default function Home() {
   const eventDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Close dropdowns on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setOpen(false); setEventSearchOpen(false); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setOpen, setEventSearchOpen]);
 
   // Fetch live/upcoming events on mount
   useEffect(() => {
@@ -119,11 +129,22 @@ export default function Home() {
   ];
 
   const showLiveSection = !liveLoading && (liveEvents.length > 0 || upcomingEvents.length > 0);
+  const teamDropdownActive = open && (results.length > 0 || !!searchError);
+  const eventDropdownActive = eventSearchOpen && eventResults.length > 0;
+
+  const ACTIVE_BORDER = "1px solid rgba(99,102,241,0.5)";
+  const DEFAULT_BORDER = "1px solid var(--border)";
+  const DROPDOWN_STYLE: React.CSSProperties = {
+    background: "rgba(13,17,23,0.97)",
+    backdropFilter: "blur(20px)",
+    border: "1px solid rgba(99,102,241,0.35)",
+    boxShadow: "0 24px 72px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.15), inset 0 1px 0 rgba(255,255,255,0.04)",
+  };
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
       {/* ── Hero ── */}
-      <section className="relative max-w-4xl mx-auto px-4 pt-10 pb-5 text-center overflow-hidden">
+      <section className="relative max-w-4xl mx-auto px-4 pt-10 pb-5 text-center" style={{ zIndex: 10 }}>
         {/* Subtle radial glow behind headline */}
         <div
           className="pointer-events-none absolute inset-0 -z-10"
@@ -164,12 +185,19 @@ export default function Home() {
         </div>
 
         {/* ── Team Search ── */}
+        {teamDropdownActive && (
+          <div
+            className="fixed inset-0"
+            style={{ zIndex: 95 }}
+            onClick={() => setOpen(false)}
+          />
+        )}
         <div
           className={`relative max-w-lg mx-auto mb-2 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
-          style={{ zIndex: 60 }}>
+          style={{ zIndex: 100 }}>
           <div
             className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
-            style={{ border: "1px solid var(--border)" }}>
+            style={{ border: teamDropdownActive ? ACTIVE_BORDER : DEFAULT_BORDER }}>
             <Search
               className="w-5 h-5 shrink-0 transition-colors duration-200"
               style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} />
@@ -187,24 +215,28 @@ export default function Home() {
             )}
           </div>
 
-          {open && (results.length > 0 || searchError) && (
+          {teamDropdownActive && (
             <div
-              className="absolute top-full mt-2 w-full rounded-2xl glass z-50 py-1.5 shadow-2xl animate-scale-in"
-              style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.1)" }}>
+              className="absolute top-full mt-2 w-full rounded-2xl py-1.5 animate-scale-in"
+              style={{ ...DROPDOWN_STYLE, zIndex: 110 }}>
               {searchError
                 ? <p className="px-4 py-3 text-sm" style={{ color: "var(--danger)" }}>{t.teams.error}</p>
                 : results.map((team, i) => (
                   <Link
                     key={team.teamNumber}
                     href={`/teams/${team.teamNumber}`}
-                    className="flex items-center justify-between px-4 py-3 transition-all duration-150 first:rounded-t-2xl last:rounded-b-2xl hover:bg-white/5"
+                    className="flex items-center justify-between px-4 py-3 transition-all duration-150 first:rounded-t-2xl last:rounded-b-2xl group"
                     style={{ animationDelay: `${i * 0.04}s` }}
                     onClick={() => setOpen(false)}>
-                    <div>
-                      <span className="font-bold text-sm" style={{ color: "var(--accent)" }}>{team.teamNumber}</span>
-                      <span className="ml-2 text-sm">{team.nameShort}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className="shrink-0 font-black text-base tabular-nums px-2 py-0.5 rounded-lg"
+                        style={{ color: "var(--accent)", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                        {team.teamNumber}
+                      </span>
+                      <span className="font-semibold text-sm truncate group-hover:text-white transition-colors" style={{ color: "var(--text)" }}>{team.nameShort}</span>
                     </div>
-                    <span className="text-xs hidden sm:block" style={{ color: "var(--text-muted)" }}>
+                    <span className="text-xs hidden sm:block shrink-0 ml-2" style={{ color: "var(--text-muted)" }}>
                       {team.city}, {team.stateProv}
                     </span>
                   </Link>
@@ -215,13 +247,20 @@ export default function Home() {
         </div>
 
         {/* ── Event Search ── */}
+        {eventDropdownActive && (
+          <div
+            className="fixed inset-0"
+            style={{ zIndex: 85 }}
+            onClick={() => setEventSearchOpen(false)}
+          />
+        )}
         <div
           className={`relative max-w-lg mx-auto mb-5 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
-          style={{ zIndex: 50 }}>
+          style={{ zIndex: 90 }}>
           <div className="flex gap-2">
             <div
               className="flex-1 flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
-              style={{ border: "1px solid var(--border)" }}>
+              style={{ border: eventDropdownActive ? ACTIVE_BORDER : DEFAULT_BORDER }}>
               <Calendar
                 className="w-5 h-5 shrink-0"
                 style={{ color: eventSearchLoading ? "var(--accent)" : "var(--text-muted)" }} />
@@ -239,7 +278,7 @@ export default function Home() {
               )}
             </div>
             <select
-              className="px-3 py-2 rounded-2xl text-sm cursor-pointer"
+              className="px-3 py-2 rounded-2xl text-sm cursor-pointer font-semibold"
               style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
               value={eventSeason}
               onChange={(e) => setEventSeason(Number(e.target.value))}>
@@ -249,15 +288,15 @@ export default function Home() {
             </select>
           </div>
 
-          {eventSearchOpen && eventResults.length > 0 && (
+          {eventDropdownActive && (
             <div
-              className="absolute top-full mt-2 w-full rounded-2xl glass z-50 py-1.5 shadow-2xl animate-scale-in"
-              style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+              className="absolute top-full mt-2 w-full rounded-2xl py-1.5 animate-scale-in"
+              style={{ ...DROPDOWN_STYLE, zIndex: 100 }}>
               {eventResults.map((ev, i) => (
                 <Link
                   key={`${ev.season}-${ev.code}`}
                   href={`/events/${ev.season}/${ev.code}`}
-                  className="flex items-center justify-between px-4 py-3 transition-all duration-150 first:rounded-t-2xl last:rounded-b-2xl hover:bg-white/5"
+                  className="flex items-center justify-between px-4 py-3 transition-all duration-150 first:rounded-t-2xl last:rounded-b-2xl group"
                   style={{ animationDelay: `${i * 0.04}s` }}
                   onClick={() => { setEventSearchOpen(false); setEventQuery(""); }}>
                   <div className="min-w-0">
@@ -265,11 +304,11 @@ export default function Home() {
                       {ev.ongoing && (
                         <span
                           className="text-xs px-1.5 py-0.5 rounded-full font-semibold shrink-0"
-                          style={{ color: "var(--danger)", background: "rgba(239,68,68,0.12)" }}>
+                          style={{ color: "var(--danger)", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)" }}>
                           🔴 Live
                         </span>
                       )}
-                      <span className="font-bold text-sm truncate">{ev.name}</span>
+                      <span className="font-bold text-sm truncate group-hover:text-white transition-colors">{ev.name}</span>
                     </div>
                     <div className="flex items-center gap-1 mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
                       <MapPin className="w-3 h-3" />{ev.city}, {ev.stateProv}
@@ -278,7 +317,7 @@ export default function Home() {
                       {new Date(ev.start).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 opacity-40 shrink-0 ml-2" style={{ color: "var(--accent)" }} />
+                  <ChevronRight className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" style={{ color: "var(--accent)" }} />
                 </Link>
               ))}
             </div>
