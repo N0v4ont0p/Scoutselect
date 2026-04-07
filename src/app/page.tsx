@@ -300,7 +300,7 @@ export default function Home() {
               <p className="font-semibold text-sm">{t.home.quickLinks.events}</p>
               <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.eventsDesc}</p>
             </div>
-            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-60 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
           </Link>
           <Link
             href="/teams"
@@ -313,7 +313,7 @@ export default function Home() {
               <p className="font-semibold text-sm">{t.home.quickLinks.teams}</p>
               <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.teamsDesc}</p>
             </div>
-            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-60 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
           </Link>
           <Link
             href="/compare"
@@ -326,7 +326,7 @@ export default function Home() {
               <p className="font-semibold text-sm">{t.home.quickLinks.compare}</p>
               <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.compareDesc}</p>
             </div>
-            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-60 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
           </Link>
         </div>
       </section>
@@ -384,9 +384,8 @@ export default function Home() {
               {upcomingEvents.length > 0 && (
                 <div>
                   <h2
-                    className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2"
+                    className="text-xs font-bold uppercase tracking-widest mb-3"
                     style={{ color: "var(--text-muted)" }}>
-                    <Calendar className="w-3 h-3" />
                     {t.home.upcomingEvents}
                   </h2>
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
