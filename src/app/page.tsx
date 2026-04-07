@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type React from "react";
 import Link from "next/link";
 import {
   Search, Zap, BarChart2, Target, Users, TrendingUp,
@@ -63,7 +64,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [setOpen, setEventSearchOpen]);
 
   // Fetch live/upcoming events on mount
   useEffect(() => {
@@ -131,6 +132,15 @@ export default function Home() {
   const teamDropdownActive = open && (results.length > 0 || !!searchError);
   const eventDropdownActive = eventSearchOpen && eventResults.length > 0;
 
+  const ACTIVE_BORDER = "1px solid rgba(99,102,241,0.5)";
+  const DEFAULT_BORDER = "1px solid var(--border)";
+  const DROPDOWN_STYLE: React.CSSProperties = {
+    background: "rgba(13,17,23,0.97)",
+    backdropFilter: "blur(20px)",
+    border: "1px solid rgba(99,102,241,0.35)",
+    boxShadow: "0 24px 72px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.15), inset 0 1px 0 rgba(255,255,255,0.04)",
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
       {/* ── Hero ── */}
@@ -187,7 +197,7 @@ export default function Home() {
           style={{ zIndex: 100 }}>
           <div
             className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
-            style={{ border: teamDropdownActive ? "1px solid rgba(99,102,241,0.5)" : "1px solid var(--border)" }}>
+            style={{ border: teamDropdownActive ? ACTIVE_BORDER : DEFAULT_BORDER }}>
             <Search
               className="w-5 h-5 shrink-0 transition-colors duration-200"
               style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} />
@@ -208,13 +218,7 @@ export default function Home() {
           {teamDropdownActive && (
             <div
               className="absolute top-full mt-2 w-full rounded-2xl py-1.5 animate-scale-in"
-              style={{
-                background: "rgba(13,17,23,0.97)",
-                backdropFilter: "blur(20px)",
-                border: "1px solid rgba(99,102,241,0.35)",
-                boxShadow: "0 24px 72px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.15), inset 0 1px 0 rgba(255,255,255,0.04)",
-                zIndex: 110,
-              }}>
+              style={{ ...DROPDOWN_STYLE, zIndex: 110 }}>
               {searchError
                 ? <p className="px-4 py-3 text-sm" style={{ color: "var(--danger)" }}>{t.teams.error}</p>
                 : results.map((team, i) => (
@@ -226,7 +230,6 @@ export default function Home() {
                     onClick={() => setOpen(false)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <span
-                        aria-label={`Team number ${team.teamNumber}`}
                         className="shrink-0 font-black text-base tabular-nums px-2 py-0.5 rounded-lg"
                         style={{ color: "var(--accent)", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)" }}>
                         {team.teamNumber}
@@ -257,7 +260,7 @@ export default function Home() {
           <div className="flex gap-2">
             <div
               className="flex-1 flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
-              style={{ border: eventDropdownActive ? "1px solid rgba(99,102,241,0.5)" : "1px solid var(--border)" }}>
+              style={{ border: eventDropdownActive ? ACTIVE_BORDER : DEFAULT_BORDER }}>
               <Calendar
                 className="w-5 h-5 shrink-0"
                 style={{ color: eventSearchLoading ? "var(--accent)" : "var(--text-muted)" }} />
@@ -288,13 +291,7 @@ export default function Home() {
           {eventDropdownActive && (
             <div
               className="absolute top-full mt-2 w-full rounded-2xl py-1.5 animate-scale-in"
-              style={{
-                background: "rgba(13,17,23,0.97)",
-                backdropFilter: "blur(20px)",
-                border: "1px solid rgba(99,102,241,0.35)",
-                boxShadow: "0 24px 72px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.15), inset 0 1px 0 rgba(255,255,255,0.04)",
-                zIndex: 100,
-              }}>
+              style={{ ...DROPDOWN_STYLE, zIndex: 100 }}>
               {eventResults.map((ev, i) => (
                 <Link
                   key={`${ev.season}-${ev.code}`}
