@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, Zap, BarChart2, Target, Users, TrendingUp } from "lucide-react";
-import { seasonName } from "@/lib/utils";
+import {
+  Search, Zap, BarChart2, Target, Users, TrendingUp,
+  Calendar, MapPin, ChevronRight, ArrowRight,
+} from "lucide-react";
+import { seasonName, getCurrentSeason } from "@/lib/utils";
 import { useI18n } from "@/context/LanguageContext";
 
 const SEASONS = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
@@ -16,6 +19,17 @@ interface TeamResult {
   country: string;
 }
 
+interface EventSummary {
+  season: number;
+  code: string;
+  name: string;
+  city: string;
+  stateProv: string;
+  start: string;
+  ongoing: boolean;
+  finished: boolean;
+}
+
 export default function Home() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
@@ -26,8 +40,38 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Live / upcoming events
+  const [liveEvents, setLiveEvents] = useState<EventSummary[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<EventSummary[]>([]);
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveSeason, setLiveSeason] = useState(0);
+
+  // Event search
+  const [eventQuery, setEventQuery] = useState("");
+  const [eventResults, setEventResults] = useState<EventSummary[]>([]);
+  const [eventSearchLoading, setEventSearchLoading] = useState(false);
+  const [eventSearchOpen, setEventSearchOpen] = useState(false);
+  const [eventSeason, setEventSeason] = useState(getCurrentSeason());
+  const eventDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => { setMounted(true); }, []);
 
+  // Fetch live/upcoming events on mount
+  useEffect(() => {
+    fetch("/api/events/live")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && !data.error) {
+          setLiveEvents(data.live ?? []);
+          setUpcomingEvents(data.upcoming ?? []);
+          setLiveSeason(data.season ?? getCurrentSeason());
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLiveLoading(false));
+  }, []);
+
+  // Team search debounce
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) { setResults([]); setSearchError(""); setOpen(false); return; }
@@ -46,6 +90,25 @@ export default function Home() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
+  // Event search debounce
+  useEffect(() => {
+    if (eventDebounceRef.current) clearTimeout(eventDebounceRef.current);
+    if (!eventQuery.trim()) { setEventResults([]); setEventSearchOpen(false); return; }
+    eventDebounceRef.current = setTimeout(async () => {
+      setEventSearchLoading(true);
+      try {
+        const res = await fetch(
+          `/api/events/search?q=${encodeURIComponent(eventQuery)}&season=${eventSeason}`
+        );
+        const data = await res.json();
+        setEventResults(Array.isArray(data) ? data : []);
+        setEventSearchOpen(true);
+      } catch { setEventResults([]); }
+      setEventSearchLoading(false);
+    }, 300);
+    return () => { if (eventDebounceRef.current) clearTimeout(eventDebounceRef.current); };
+  }, [eventQuery, eventSeason]);
+
   const featureData = [
     { icon: <Target className="w-5 h-5" />, key: "role" as const },
     { icon: <BarChart2 className="w-5 h-5" />, key: "pick" as const },
@@ -55,12 +118,15 @@ export default function Home() {
     { icon: <Search className="w-5 h-5" />, key: "discover" as const },
   ];
 
+  const showLiveSection = !liveLoading && (liveEvents.length > 0 || upcomingEvents.length > 0);
+
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
       {/* ── Hero ── */}
-      <section className="max-w-4xl mx-auto px-4 pt-16 pb-16 text-center">
+      <section className="max-w-4xl mx-auto px-4 pt-16 pb-10 text-center">
         {/* Badge */}
-        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6 animate-fade-in ${mounted ? "" : "opacity-0"}`}
+        <div
+          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6 animate-fade-in ${mounted ? "" : "opacity-0"}`}
           style={{ background: "rgba(99,102,241,0.15)", color: "var(--accent)", border: "1px solid rgba(99,102,241,0.3)" }}>
           <Zap className="w-3 h-3 animate-pulse-glow" style={{ animationDuration: "2s" }} />
           {t.home.badge}
@@ -71,26 +137,34 @@ export default function Home() {
           <span className="gradient-text">{t.home.headline}</span>
         </h1>
 
-        <p className={`text-lg sm:text-xl mb-6 max-w-2xl mx-auto animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}
+        <p
+          className={`text-lg sm:text-xl mb-6 max-w-2xl mx-auto animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}
           style={{ color: "var(--text-muted)" }}>
           {t.home.subheadline}
         </p>
 
-        {/* Free / unlimited pill */}
+        {/* Pills */}
         <div className={`flex items-center justify-center gap-3 mb-10 animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
           {t.home.pills.map((label) => (
-            <span key={label} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium"
+            <span
+              key={label}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium"
               style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)", border: "1px solid rgba(34,197,94,0.25)" }}>
               ✓ {label}
             </span>
           ))}
         </div>
 
-        {/* ── Search ── */}
-        <div className={`relative max-w-lg mx-auto mb-16 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`} style={{ zIndex: 60 }}>
-          <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+        {/* ── Team Search ── */}
+        <div
+          className={`relative max-w-lg mx-auto mb-3 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
+          style={{ zIndex: 60 }}>
+          <div
+            className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
             style={{ border: "1px solid var(--border)" }}>
-            <Search className="w-5 h-5 shrink-0 transition-colors duration-200" style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} />
+            <Search
+              className="w-5 h-5 shrink-0 transition-colors duration-200"
+              style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} />
             <input
               className="flex-1 bg-transparent outline-none text-sm"
               placeholder={t.home.searchPlaceholder}
@@ -99,27 +173,27 @@ export default function Home() {
               style={{ color: "var(--text)" }}
             />
             {loading && (
-              <div className="w-4 h-4 border-2 rounded-full animate-spin shrink-0"
+              <div
+                className="w-4 h-4 border-2 rounded-full animate-spin shrink-0"
                 style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
             )}
           </div>
 
           {open && (results.length > 0 || searchError) && (
-            <div className="absolute top-full mt-2 w-full rounded-2xl glass z-50 py-1.5 shadow-2xl animate-scale-in"
+            <div
+              className="absolute top-full mt-2 w-full rounded-2xl glass z-50 py-1.5 shadow-2xl animate-scale-in"
               style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.1)" }}>
               {searchError
-                ? <p className="px-4 py-3 text-sm" style={{ color: "var(--danger)" }}>
-                    {t.teams.error}
-                  </p>
+                ? <p className="px-4 py-3 text-sm" style={{ color: "var(--danger)" }}>{t.teams.error}</p>
                 : results.map((team, i) => (
-                  <Link key={team.teamNumber} href={`/teams/${team.teamNumber}`}
+                  <Link
+                    key={team.teamNumber}
+                    href={`/teams/${team.teamNumber}`}
                     className="flex items-center justify-between px-4 py-3 transition-all duration-150 first:rounded-t-2xl last:rounded-b-2xl hover:bg-white/5"
                     style={{ animationDelay: `${i * 0.04}s` }}
                     onClick={() => setOpen(false)}>
                     <div>
-                      <span className="font-bold text-sm" style={{ color: "var(--accent)" }}>
-                        {team.teamNumber}
-                      </span>
+                      <span className="font-bold text-sm" style={{ color: "var(--accent)" }}>{team.teamNumber}</span>
                       <span className="ml-2 text-sm">{team.nameShort}</span>
                     </div>
                     <span className="text-xs hidden sm:block" style={{ color: "var(--text-muted)" }}>
@@ -132,10 +206,220 @@ export default function Home() {
           )}
         </div>
 
-        {/* ── Feature Cards ── */}
-        <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left mb-16 ${mounted ? "" : "opacity-0"}`}>
+        {/* ── Event Search ── */}
+        <div
+          className={`relative max-w-lg mx-auto mb-16 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
+          style={{ zIndex: 50 }}>
+          <div className="flex gap-2">
+            <div
+              className="flex-1 flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+              style={{ border: "1px solid var(--border)" }}>
+              <Calendar
+                className="w-5 h-5 shrink-0"
+                style={{ color: eventSearchLoading ? "var(--accent)" : "var(--text-muted)" }} />
+              <input
+                className="flex-1 bg-transparent outline-none text-sm"
+                placeholder={t.home.eventSearchPlaceholder}
+                value={eventQuery}
+                onChange={(e) => setEventQuery(e.target.value)}
+                style={{ color: "var(--text)" }}
+              />
+              {eventSearchLoading && (
+                <div
+                  className="w-4 h-4 border-2 rounded-full animate-spin shrink-0"
+                  style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
+              )}
+            </div>
+            <select
+              className="px-3 py-2 rounded-2xl text-sm cursor-pointer"
+              style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
+              value={eventSeason}
+              onChange={(e) => setEventSeason(Number(e.target.value))}>
+              {SEASONS.slice().reverse().map((s) => (
+                <option key={s} value={s}>{s}–{s + 1}</option>
+              ))}
+            </select>
+          </div>
+
+          {eventSearchOpen && eventResults.length > 0 && (
+            <div
+              className="absolute top-full mt-2 w-full rounded-2xl glass z-50 py-1.5 shadow-2xl animate-scale-in"
+              style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+              {eventResults.map((ev, i) => (
+                <Link
+                  key={`${ev.season}-${ev.code}`}
+                  href={`/events/${ev.season}/${ev.code}`}
+                  className="flex items-center justify-between px-4 py-3 transition-all duration-150 first:rounded-t-2xl last:rounded-b-2xl hover:bg-white/5"
+                  style={{ animationDelay: `${i * 0.04}s` }}
+                  onClick={() => { setEventSearchOpen(false); setEventQuery(""); }}>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {ev.ongoing && (
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded-full font-semibold shrink-0"
+                          style={{ color: "var(--danger)", background: "rgba(239,68,68,0.12)" }}>
+                          🔴 Live
+                        </span>
+                      )}
+                      <span className="font-bold text-sm truncate">{ev.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                      <MapPin className="w-3 h-3" />{ev.city}, {ev.stateProv}
+                      <span className="mx-1">·</span>
+                      <Calendar className="w-3 h-3" />
+                      {new Date(ev.start).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 opacity-40 shrink-0 ml-2" style={{ color: "var(--accent)" }} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Live / Upcoming Events ── */}
+      {(liveLoading || showLiveSection) && (
+        <section className="max-w-4xl mx-auto px-4 pb-12">
+          {liveLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div
+                className="w-5 h-5 border-2 rounded-full animate-spin"
+                style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
+            </div>
+          ) : (
+            <>
+              {liveEvents.length > 0 && (
+                <div className="mb-8">
+                  <h2
+                    className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2"
+                    style={{ color: "var(--danger)" }}>
+                    <span
+                      className="w-2 h-2 rounded-full animate-pulse"
+                      style={{ background: "var(--danger)" }} />
+                    {t.home.liveNow}
+                  </h2>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {liveEvents.map((ev) => (
+                      <Link
+                        key={ev.code}
+                        href={`/events/${liveSeason}/${ev.code}`}
+                        className="glass glass-hover rounded-2xl p-4 flex items-center justify-between group"
+                        style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate">{ev.name}</p>
+                          <div className="flex items-center gap-1 mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                            <MapPin className="w-3 h-3" />{ev.city}, {ev.stateProv}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                          <span
+                            className="text-xs font-semibold px-2 py-1 rounded-full"
+                            style={{ color: "var(--danger)", background: "rgba(239,68,68,0.12)" }}>
+                            🔴 Live
+                          </span>
+                          <ChevronRight
+                            className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-all group-hover:translate-x-0.5"
+                            style={{ color: "var(--accent)" }} />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {upcomingEvents.length > 0 && (
+                <div className="mb-8">
+                  <h2
+                    className="text-xs font-bold uppercase tracking-widest mb-4"
+                    style={{ color: "var(--text-muted)" }}>
+                    {t.home.upcomingEvents}
+                  </h2>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {upcomingEvents.slice(0, 6).map((ev) => (
+                      <Link
+                        key={ev.code}
+                        href={`/events/${liveSeason}/${ev.code}`}
+                        className="glass glass-hover rounded-2xl p-4 flex items-center justify-between group"
+                        style={{ border: "1px solid var(--border)" }}>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate">{ev.name}</p>
+                          <div className="flex items-center gap-1 mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                            <MapPin className="w-3 h-3" />{ev.city}, {ev.stateProv}
+                            <span className="mx-1">·</span>
+                            <Calendar className="w-3 h-3" />
+                            {new Date(ev.start).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </div>
+                        </div>
+                        <ChevronRight
+                          className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 shrink-0 ml-2"
+                          style={{ color: "var(--accent)" }} />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {/* ── Quick Links ── */}
+      <section className="max-w-4xl mx-auto px-4 pb-12">
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Link
+            href="/events"
+            className="glass glass-hover rounded-2xl p-5 flex items-center gap-3 group"
+            style={{ border: "1px solid var(--border)" }}>
+            <div className="p-2.5 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
+              <Calendar className="w-5 h-5" style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">{t.home.quickLinks.events}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.eventsDesc}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+          </Link>
+          <Link
+            href="/teams"
+            className="glass glass-hover rounded-2xl p-5 flex items-center gap-3 group"
+            style={{ border: "1px solid var(--border)" }}>
+            <div className="p-2.5 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
+              <Users className="w-5 h-5" style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">{t.home.quickLinks.teams}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.teamsDesc}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+          </Link>
+          <Link
+            href="/compare"
+            className="glass glass-hover rounded-2xl p-5 flex items-center gap-3 group"
+            style={{ border: "1px solid var(--border)" }}>
+            <div className="p-2.5 rounded-xl shrink-0" style={{ background: "rgba(99,102,241,0.12)" }}>
+              <BarChart2 className="w-5 h-5" style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">{t.home.quickLinks.compare}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{t.home.quickLinks.compareDesc}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--accent)" }} />
+          </Link>
+        </div>
+      </section>
+
+      {/* ── Feature Cards ── */}
+      <section className="max-w-4xl mx-auto px-4 pb-16">
+        <h2
+          className="text-xs font-bold uppercase tracking-widest mb-4"
+          style={{ color: "var(--text-muted)" }}>
+          {t.home.featuresTitle}
+        </h2>
+        <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left ${mounted ? "" : "opacity-0"}`}>
           {featureData.map((f, i) => (
-            <div key={f.key}
+            <div
+              key={f.key}
               className="glass glass-hover rounded-2xl p-5 animate-fade-in"
               style={{ animationDelay: `${0.1 + i * 0.07}s`, opacity: 0, animationFillMode: "forwards" }}>
               <div className="flex items-center gap-2 mb-2.5" style={{ color: "var(--accent)" }}>
@@ -150,36 +434,45 @@ export default function Home() {
             </div>
           ))}
         </div>
+      </section>
 
-        {/* ── Season Links ── */}
-        <div className={`animate-fade-in stagger-6 ${mounted ? "" : "opacity-0"}`}>
-          <h2 className="text-sm font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
-            {t.home.seasonsTitle}
-          </h2>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {SEASONS.slice().reverse().map((s, i) => (
-              <Link key={s} href={`/seasons/${s}`}
-                className="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 hover:border-[--accent]"
-                style={{
-                  background: "var(--surface-2)",
-                  color: "var(--text)",
-                  border: "1px solid var(--border)",
-                  animationDelay: `${i * 0.05}s`,
-                }}>
-                {seasonName(s)}
-              </Link>
-            ))}
-          </div>
+      {/* ── Season Links ── */}
+      <section className="max-w-4xl mx-auto px-4 pb-16 text-center">
+        <h2
+          className="text-sm font-semibold uppercase tracking-widest mb-4"
+          style={{ color: "var(--text-muted)" }}>
+          {t.home.seasonsTitle}
+        </h2>
+        <div className="flex flex-wrap gap-2 justify-center">
+          {SEASONS.slice().reverse().map((s, i) => (
+            <Link
+              key={s}
+              href={`/seasons/${s}`}
+              className="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 hover:border-[--accent]"
+              style={{
+                background: "var(--surface-2)",
+                color: "var(--text)",
+                border: "1px solid var(--border)",
+                animationDelay: `${i * 0.05}s`,
+              }}>
+              {seasonName(s)}
+            </Link>
+          ))}
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t text-center py-8 text-xs" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+      <footer
+        className="border-t text-center py-8 text-xs"
+        style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
         {t.home.footer}{" "}
         <span style={{ color: "var(--accent)" }}>FTC Team 19859</span>
         {" · "}
         {t.home.footerPowered}{" "}
-        <a href="https://ftcscout.org" target="_blank" rel="noopener noreferrer"
+        <a
+          href="https://ftcscout.org"
+          target="_blank"
+          rel="noopener noreferrer"
           className="underline hover:text-white transition-colors">
           FTCScout API
         </a>
