@@ -123,7 +123,7 @@ export default function Home() {
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
       {/* ── Hero ── */}
-      <section className="max-w-4xl mx-auto px-4 pt-16 pb-10 text-center">
+      <section className="max-w-4xl mx-auto px-4 pt-10 pb-6 text-center">
         {/* Badge */}
         <div
           className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6 animate-fade-in ${mounted ? "" : "opacity-0"}`}
@@ -144,7 +144,7 @@ export default function Home() {
         </p>
 
         {/* Pills */}
-        <div className={`flex items-center justify-center gap-3 mb-10 animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
+        <div className={`flex items-center justify-center gap-3 mb-6 animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
           {t.home.pills.map((label) => (
             <span
               key={label}
@@ -208,7 +208,7 @@ export default function Home() {
 
         {/* ── Event Search ── */}
         <div
-          className={`relative max-w-lg mx-auto mb-16 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
+          className={`relative max-w-lg mx-auto mb-8 animate-slide-up stagger-3 ${mounted ? "" : "opacity-0"}`}
           style={{ zIndex: 50 }}>
           <div className="flex gap-2">
             <div
@@ -280,7 +280,7 @@ export default function Home() {
 
       {/* ── Live / Upcoming Events ── */}
       {(liveLoading || showLiveSection) && (
-        <section className="max-w-4xl mx-auto px-4 pb-12">
+        <section className="max-w-4xl mx-auto px-4 pb-8">
           {liveLoading ? (
             <div className="flex items-center justify-center py-8">
               <div
@@ -365,8 +365,8 @@ export default function Home() {
       )}
 
       {/* ── Quick Links ── */}
-      <section className="max-w-4xl mx-auto px-4 pb-12">
-        <div className="grid sm:grid-cols-3 gap-4">
+      <section className="max-w-4xl mx-auto px-4 pb-6">
+        <div className="grid sm:grid-cols-3 gap-3">
           <Link
             href="/events"
             className="glass glass-hover rounded-2xl p-5 flex items-center gap-3 group"
@@ -410,7 +410,7 @@ export default function Home() {
       </section>
 
       {/* ── Feature Cards ── */}
-      <section className="max-w-4xl mx-auto px-4 pb-16">
+      <section className="max-w-4xl mx-auto px-4 pb-10">
         <h2
           className="text-xs font-bold uppercase tracking-widest mb-4"
           style={{ color: "var(--text-muted)" }}>
