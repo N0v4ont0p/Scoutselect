@@ -128,6 +128,8 @@ export default function Home() {
   ];
 
   const showLiveSection = !liveLoading && (liveEvents.length > 0 || upcomingEvents.length > 0);
+  const teamDropdownActive = open && (results.length > 0 || !!searchError);
+  const eventDropdownActive = eventSearchOpen && eventResults.length > 0;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
@@ -173,7 +175,7 @@ export default function Home() {
         </div>
 
         {/* ── Team Search ── */}
-        {open && (results.length > 0 || searchError) && (
+        {teamDropdownActive && (
           <div
             className="fixed inset-0"
             style={{ zIndex: 95 }}
@@ -185,7 +187,7 @@ export default function Home() {
           style={{ zIndex: 100 }}>
           <div
             className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
-            style={{ border: open && (results.length > 0 || !!searchError) ? "1px solid rgba(99,102,241,0.5)" : "1px solid var(--border)" }}>
+            style={{ border: teamDropdownActive ? "1px solid rgba(99,102,241,0.5)" : "1px solid var(--border)" }}>
             <Search
               className="w-5 h-5 shrink-0 transition-colors duration-200"
               style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} />
@@ -203,7 +205,7 @@ export default function Home() {
             )}
           </div>
 
-          {open && (results.length > 0 || searchError) && (
+          {teamDropdownActive && (
             <div
               className="absolute top-full mt-2 w-full rounded-2xl py-1.5 animate-scale-in"
               style={{
@@ -224,6 +226,7 @@ export default function Home() {
                     onClick={() => setOpen(false)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <span
+                        aria-label={`Team number ${team.teamNumber}`}
                         className="shrink-0 font-black text-base tabular-nums px-2 py-0.5 rounded-lg"
                         style={{ color: "var(--accent)", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)" }}>
                         {team.teamNumber}
@@ -241,7 +244,7 @@ export default function Home() {
         </div>
 
         {/* ── Event Search ── */}
-        {eventSearchOpen && eventResults.length > 0 && (
+        {eventDropdownActive && (
           <div
             className="fixed inset-0"
             style={{ zIndex: 85 }}
@@ -254,7 +257,7 @@ export default function Home() {
           <div className="flex gap-2">
             <div
               className="flex-1 flex items-center gap-3 px-4 py-3.5 rounded-2xl glass transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
-              style={{ border: eventSearchOpen && eventResults.length > 0 ? "1px solid rgba(99,102,241,0.5)" : "1px solid var(--border)" }}>
+              style={{ border: eventDropdownActive ? "1px solid rgba(99,102,241,0.5)" : "1px solid var(--border)" }}>
               <Calendar
                 className="w-5 h-5 shrink-0"
                 style={{ color: eventSearchLoading ? "var(--accent)" : "var(--text-muted)" }} />
@@ -282,7 +285,7 @@ export default function Home() {
             </select>
           </div>
 
-          {eventSearchOpen && eventResults.length > 0 && (
+          {eventDropdownActive && (
             <div
               className="absolute top-full mt-2 w-full rounded-2xl py-1.5 animate-scale-in"
               style={{
