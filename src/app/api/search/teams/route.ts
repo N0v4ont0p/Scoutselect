@@ -3,8 +3,9 @@ import { searchTeams } from "@/lib/ftcscout";
 import { cacheGet, cacheSet, TTL_SEARCH } from "@/lib/cache";
 
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get("q") ?? "";
-  if (!q.trim()) return NextResponse.json([]);
+  const raw = req.nextUrl.searchParams.get("q") ?? "";
+  const q = raw.trim().toLowerCase().slice(0, 100); // normalize + length cap
+  if (!q) return NextResponse.json([]);
   const key = `search:${q}`;
   const cached = cacheGet(key);
   if (cached) return NextResponse.json(cached);
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
     cacheSet(key, data, TTL_SEARCH);
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

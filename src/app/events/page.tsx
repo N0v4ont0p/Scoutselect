@@ -94,16 +94,20 @@ export default function EventsPage() {
       <div className="glass rounded-2xl p-6 mb-6 animate-slide-up stagger-2" style={{ border: "1px solid var(--border)" }}>
         <div className="grid sm:grid-cols-3 gap-3 mb-4">
           <div className="sm:col-span-2">
-            <label className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
+            <label htmlFor="events-team-input" className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
               style={{ color: "var(--text-muted)" }}>
               {t.events.teamLabel}
             </label>
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200 focus-within:border-[--accent]"
               style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-              <Search className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />
+              <Search className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} aria-hidden="true" />
               <input
+                id="events-team-input"
                 className="flex-1 bg-transparent outline-none text-sm font-mono"
                 style={{ color: "var(--text)" }}
+                type="number"
+                inputMode="numeric"
+                autoComplete="off"
                 placeholder={t.events.teamPlaceholder}
                 value={teamInput}
                 onChange={(e) => setTeamInput(e.target.value)}
@@ -112,11 +116,12 @@ export default function EventsPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
+            <label htmlFor="events-season-select" className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
               style={{ color: "var(--text-muted)" }}>
               {t.events.seasonLabel}
             </label>
             <select
+              id="events-season-select"
               className="w-full px-3 py-2.5 rounded-xl text-sm cursor-pointer"
               style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
               value={season}
@@ -133,17 +138,23 @@ export default function EventsPage() {
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-40 hover:brightness-110 active:scale-98"
           style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 4px 16px rgba(99,102,241,0.3)" }}>
           {loading
-            ? <><span className="w-4 h-4 border-2 rounded-full animate-spin"
+            ? <><span className="w-4 h-4 border-2 rounded-full animate-spin" aria-hidden="true"
                 style={{ borderColor: "rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
               {t.events.loading}</>
-            : <><Search className="w-4 h-4" />{t.events.findBtn}<ArrowRight className="w-4 h-4 ml-1" /></>
+            : <><Search className="w-4 h-4" aria-hidden="true" />{t.events.findBtn}<ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" /></>
           }
         </button>
+        {/* Quick hint for first-time visitors */}
+        {!submittedTeam && !loading && (
+          <p className="mt-3 text-xs text-center" style={{ color: "var(--text-muted)" }}>
+            {t.events.hint}
+          </p>
+        )}
       </div>
 
       {/* Error */}
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-2xl text-sm animate-fade-in"
+        <div className="mb-4 px-4 py-3 rounded-2xl text-sm animate-fade-in" role="alert"
           style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--danger)" }}>
           {error}
         </div>
@@ -152,7 +163,7 @@ export default function EventsPage() {
       {/* No results */}
       {submittedTeam && !loading && events.length === 0 && !error && (
         <div className="text-center py-12 animate-fade-in" style={{ color: "var(--text-muted)" }}>
-          <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" aria-hidden="true" />
           <p>{t.events.noEvents.replace("{team}", String(submittedTeam)).replace("{season}", seasonName(season))}</p>
         </div>
       )}
@@ -186,14 +197,19 @@ export default function EventsPage() {
             style={{ border: "1px solid var(--border)" }}>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t.events.manualHint}</p>
             <div className="flex gap-2">
-              <select className="px-3 py-2 rounded-xl text-sm"
+              <label htmlFor="manual-season-select" className="sr-only">Season</label>
+              <select
+                id="manual-season-select"
+                className="px-3 py-2 rounded-xl text-sm"
                 style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
                 value={manualSeason} onChange={(e) => setManualSeason(Number(e.target.value))}>
                 {SEASONS.slice().reverse().map((s) => (
                   <option key={s} value={s}>{s}–{s + 1}</option>
                 ))}
               </select>
+              <label htmlFor="manual-code-input" className="sr-only">Event code</label>
               <input
+                id="manual-code-input"
                 className="flex-1 px-3 py-2 rounded-xl text-sm font-mono"
                 style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
                 placeholder={t.events.manualPlaceholder}

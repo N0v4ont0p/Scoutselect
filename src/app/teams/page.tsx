@@ -54,17 +54,22 @@ function TeamsContent() {
       {/* Search bar */}
       <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl glass mb-6 animate-slide-up stagger-1 transition-all duration-300 focus-within:border-[--accent] focus-within:shadow-[0_0_16px_rgba(99,102,241,0.15)]"
         style={{ border: "1px solid var(--border)" }}>
-        <Search className="w-5 h-5 shrink-0 transition-colors" style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} />
+        <Search className="w-5 h-5 shrink-0 transition-colors" style={{ color: loading ? "var(--accent)" : "var(--text-muted)" }} aria-hidden="true" />
+        <label htmlFor="teams-search-input" className="sr-only">{t.teams.placeholder}</label>
         <input
+          id="teams-search-input"
           autoFocus
           className="flex-1 bg-transparent outline-none text-sm"
           placeholder={t.teams.placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           style={{ color: "var(--text)" }}
+          role="searchbox"
+          aria-label={t.teams.placeholder}
+          autoComplete="off"
         />
         {loading && (
-          <div className="w-4 h-4 border-2 rounded-full animate-spin shrink-0"
+          <div className="w-4 h-4 border-2 rounded-full animate-spin shrink-0" aria-hidden="true"
             style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
         )}
       </div>

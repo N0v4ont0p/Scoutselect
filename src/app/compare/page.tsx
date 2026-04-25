@@ -58,14 +58,26 @@ export default function ComparePage() {
   const [eventCode, setEventCode] = useState("");
   const [metrics, setMetrics] = useState<(TeamMetricsSummary | null)[]>([]);
   const [loading, setLoading] = useState(false);
+  const [compareError, setCompareError] = useState("");
+  const [ran, setRan] = useState(false);
 
   async function handleCompare() {
     if (!eventCode.trim()) return;
     setLoading(true);
-    const results = await Promise.all(
-      teamInputs.filter(Boolean).map((t) => fetchTeamMetrics(parseInt(t), season, eventCode.trim().toUpperCase()))
-    );
-    setMetrics(results);
+    setCompareError("");
+    setRan(false);
+    try {
+      const results = await Promise.all(
+        teamInputs.filter(Boolean).map((t) => fetchTeamMetrics(parseInt(t), season, eventCode.trim().toUpperCase()))
+      );
+      setMetrics(results);
+      if (results.every((r) => r === null)) {
+        setCompareError("No match data found for those teams at that event. Check the event code and team numbers.");
+      }
+    } catch (e) {
+      setCompareError(e instanceof Error ? e.message : String(e));
+    }
+    setRan(true);
     setLoading(false);
   }
 
@@ -91,11 +103,13 @@ export default function ComparePage() {
       <div className="glass rounded-2xl p-6 mb-8 animate-slide-up stagger-1" style={{ border: "1px solid var(--border)" }}>
         <div className="grid sm:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
+            <label htmlFor="compare-season-select" className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
               style={{ color: "var(--text-muted)" }}>
               {t.compare.seasonLabel}
             </label>
-            <select className="w-full px-3 py-2.5 rounded-xl text-sm cursor-pointer"
+            <select
+              id="compare-season-select"
+              className="w-full px-3 py-2.5 rounded-xl text-sm cursor-pointer"
               style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
               value={season} onChange={(e) => setSeason(Number(e.target.value))}>
               {[2019,2020,2021,2022,2023,2024,2025].slice().reverse().map((s) => (
@@ -104,11 +118,13 @@ export default function ComparePage() {
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
+            <label htmlFor="compare-event-code" className="text-xs font-semibold uppercase tracking-widest mb-1.5 block"
               style={{ color: "var(--text-muted)" }}>
               {t.compare.eventCodeLabel}
             </label>
-            <input className="w-full px-3 py-2.5 rounded-xl text-sm"
+            <input
+              id="compare-event-code"
+              className="w-full px-3 py-2.5 rounded-xl text-sm"
               style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
               placeholder={t.compare.eventCodePlaceholder}
               value={eventCode} onChange={(e) => setEventCode(e.target.value)} />
@@ -118,8 +134,16 @@ export default function ComparePage() {
         <div className="space-y-2 mb-4">
           {teamInputs.map((teamVal, i) => (
             <div key={i} className="flex gap-2">
-              <input className="flex-1 px-3 py-2.5 rounded-xl text-sm"
+              <label htmlFor={`compare-team-${i}`} className="sr-only">
+                {t.compare.teamPlaceholder.replace("{n}", String(i + 1))}
+              </label>
+              <input
+                id={`compare-team-${i}`}
+                className="flex-1 px-3 py-2.5 rounded-xl text-sm"
                 style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
+                type="number"
+                inputMode="numeric"
+                autoComplete="off"
                 placeholder={t.compare.teamPlaceholder.replace("{n}", String(i + 1))}
                 value={teamVal} onChange={(e) => {
                   const next = [...teamInputs];
@@ -127,10 +151,12 @@ export default function ComparePage() {
                   setTeamInputs(next);
                 }} />
               {teamInputs.length > 2 && (
-                <button onClick={() => setTeamInputs(teamInputs.filter((_, j) => j !== i))}
+                <button
+                  onClick={() => setTeamInputs(teamInputs.filter((_, j) => j !== i))}
+                  aria-label={`Remove team ${i + 1}`}
                   className="px-2 rounded-xl hover:bg-white/10 transition-colors"
                   style={{ color: "var(--danger)" }}>
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -142,7 +168,7 @@ export default function ComparePage() {
             <button onClick={() => setTeamInputs([...teamInputs, ""])}
               className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm transition-colors hover:bg-white/5"
               style={{ background: "var(--surface-2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
-              <Plus className="w-3 h-3" /> {t.compare.addTeam}
+              <Plus className="w-3 h-3" aria-hidden="true" /> {t.compare.addTeam}
             </button>
           )}
           <button onClick={handleCompare} disabled={loading || !eventCode.trim()}
@@ -153,7 +179,22 @@ export default function ComparePage() {
         </div>
       </div>
 
-      {metrics.length > 0 && (
+      {/* Error state */}
+      {compareError && (
+        <div className="mb-4 px-4 py-3 rounded-2xl text-sm animate-fade-in" role="alert"
+          style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--danger)" }}>
+          {compareError}
+        </div>
+      )}
+
+      {/* No data / empty state */}
+      {ran && !loading && !compareError && metrics.every((m) => m === null) && (
+        <div className="text-center py-10 animate-fade-in" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm">No match data found. Make sure the event code is correct and quals matches have been played.</p>
+        </div>
+      )}
+
+      {metrics.length > 0 && metrics.some(Boolean) && (
         <div className="space-y-4 animate-fade-in">
           {metrics.filter(Boolean).map((m) => m && (
             <div key={m.teamNumber} className="glass rounded-2xl p-5" style={{ border: "1px solid var(--border)" }}>
@@ -172,7 +213,8 @@ export default function ComparePage() {
                     <span style={{ color: "var(--text-muted)" }}>{stat.label}</span>
                     <span className="font-mono font-semibold">{formatScore(stat.value)}</span>
                   </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}
+                    role="progressbar" aria-valuenow={Math.round(stat.value)} aria-valuemin={0} aria-valuemax={Math.round(stat.max)} aria-label={stat.label}>
                     <div className="h-2 rounded-full transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.min(100, (stat.value / stat.max) * 100)}%`,

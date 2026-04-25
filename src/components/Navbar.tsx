@@ -58,10 +58,10 @@ export default function Navbar() {
           ))}
           <button
             onClick={toggle}
-            className="lang-btn flex items-center gap-1.5 ml-2"
+            className="lang-btn flex items-center gap-1.5 ml-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors min-h-[36px]"
             aria-label="Toggle language"
           >
-            <Globe className="w-3 h-3" />
+            <Globe className="w-3.5 h-3.5" aria-hidden="true" />
             {t.nav.toggleLang}
           </button>
         </div>
@@ -97,10 +97,10 @@ export default function Navbar() {
           ))}
           <button
             onClick={toggle}
-            className="lang-btn flex items-center gap-1.5 w-fit"
+            className="lang-btn flex items-center gap-1.5 w-fit px-2 py-2 rounded-lg hover:bg-white/5 transition-colors min-h-[44px]"
             aria-label="Toggle language"
           >
-            <Globe className="w-3 h-3" />
+            <Globe className="w-3.5 h-3.5" aria-hidden="true" />
             {t.nav.toggleLang}
           </button>
         </div>
