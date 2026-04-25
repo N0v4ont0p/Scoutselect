@@ -82,7 +82,11 @@ export default function ComparePage() {
         </Link>
       </div>
 
-      <h1 className="text-3xl font-black mb-8 animate-slide-up">{t.compare.title}</h1>
+      <h1 className="text-3xl font-black mb-4 animate-slide-up">{t.compare.title}</h1>
+
+      <p className="text-sm mb-8 animate-slide-up" style={{ color: "var(--text-muted)" }}>
+        {t.compare.description}
+      </p>
 
       <div className="glass rounded-2xl p-6 mb-8 animate-slide-up stagger-1" style={{ border: "1px solid var(--border)" }}>
         <div className="grid sm:grid-cols-3 gap-4 mb-4">

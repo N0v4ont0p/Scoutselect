@@ -70,14 +70,6 @@ export default function Navbar() {
         {/* Mobile controls */}
         <div className="sm:hidden flex items-center gap-2">
           <button
-            onClick={toggle}
-            className="lang-btn flex items-center gap-1 py-1 px-2 text-xs"
-            aria-label="Toggle language"
-          >
-            <Globe className="w-3 h-3" />
-            {t.nav.toggleLang}
-          </button>
-          <button
             className="p-2 rounded-lg hover:bg-white/10 transition-colors"
             style={{ color: "var(--text-muted)" }}
             onClick={() => setMobileOpen((v) => !v)}
@@ -104,6 +96,14 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          <button
+            onClick={toggle}
+            className="lang-btn flex items-center gap-1.5 w-fit"
+            aria-label="Toggle language"
+          >
+            <Globe className="w-3 h-3" />
+            {t.nav.toggleLang}
+          </button>
         </div>
       )}
     </nav>
