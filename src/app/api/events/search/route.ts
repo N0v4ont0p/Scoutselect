@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSeasonEvents, type FTCEventSummary } from "@/lib/ftcscout";
+import { getSeasonEvents, upstreamErrorMessage, type FTCEventSummary } from "@/lib/ftcscout";
 import { getCurrentSeason } from "@/lib/utils";
-import { cacheGet, cacheSet, TTL_SEARCH } from "@/lib/cache";
+import { cacheGet, cacheGetStale, cacheSet, TTL_SEARCH } from "@/lib/cache";
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
@@ -18,7 +18,13 @@ export async function GET(req: NextRequest) {
       events = await getSeasonEvents(season);
       cacheSet(key, events, TTL_SEARCH);
     } catch (e) {
-      return NextResponse.json({ error: String(e) }, { status: 500 });
+      console.error("[api/events/search] FTCScout error:", e);
+      const stale = cacheGetStale<FTCEventSummary[]>(key);
+      if (stale) {
+        events = stale;
+      } else {
+        return NextResponse.json({ error: upstreamErrorMessage(e) }, { status: 503 });
+      }
     }
   }
 

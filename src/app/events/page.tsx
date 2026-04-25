@@ -59,7 +59,7 @@ export default function EventsPage() {
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : "Failed to load events. Please try again.");
     }
     setLoading(false);
   }

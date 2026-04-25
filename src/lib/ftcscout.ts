@@ -1,6 +1,38 @@
 const GRAPHQL_ENDPOINT = "https://api.ftcscout.org/graphql";
 const GQL_TIMEOUT_MS = 10_000; // 10 s — avoids hanging forever during events
 
+// ---------- Typed error for upstream failures ----------
+export type FTCScoutErrorKind = "forbidden" | "rate_limited" | "timeout" | "upstream";
+
+export class FTCScoutError extends Error {
+  readonly kind: FTCScoutErrorKind;
+  readonly httpStatus?: number;
+
+  constructor(kind: FTCScoutErrorKind, message: string, httpStatus?: number) {
+    super(message);
+    this.name = "FTCScoutError";
+    this.kind = kind;
+    this.httpStatus = httpStatus;
+  }
+}
+
+/** Returns a user-friendly string for any upstream error (safe to show in the UI). */
+export function upstreamErrorMessage(err: unknown): string {
+  if (err instanceof FTCScoutError) {
+    switch (err.kind) {
+      case "forbidden":
+        return "Scouting data is temporarily unavailable — FTCScout is restricting access. Please try again later.";
+      case "rate_limited":
+        return "Scouting data is temporarily unavailable — too many requests to FTCScout. Please wait a moment and try again.";
+      case "timeout":
+        return "FTCScout did not respond in time. Please check your connection and try again.";
+      default:
+        return "Scouting data is temporarily unavailable. Please try again shortly.";
+    }
+  }
+  return "Scouting data is temporarily unavailable. Please try again shortly.";
+}
+
 // ---------- GraphQL helper ----------
 async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const controller = new AbortController();
@@ -17,12 +49,23 @@ async function gql<T>(query: string, variables?: Record<string, unknown>): Promi
   } catch (err) {
     clearTimeout(timer);
     if ((err as Error).name === "AbortError") {
-      throw new Error("FTCScout API timed out — please try again");
+      throw new FTCScoutError("timeout", "FTCScout API timed out — please try again");
     }
     throw err;
   }
   clearTimeout(timer);
-  if (!res.ok) throw new Error(`FTCScout API unavailable (HTTP ${res.status})`);
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new FTCScoutError("forbidden", `FTCScout API unavailable (HTTP 403)`, 403);
+    }
+    if (res.status === 429) {
+      throw new FTCScoutError("rate_limited", `FTCScout API rate limited (HTTP 429)`, 429);
+    }
+    if (res.status >= 500) {
+      throw new FTCScoutError("upstream", `FTCScout API unavailable (HTTP ${res.status})`, res.status);
+    }
+    throw new FTCScoutError("upstream", `FTCScout API error (HTTP ${res.status})`, res.status);
+  }
   const json = (await res.json()) as { data: T; errors?: { message: string }[] };
   if (json.errors?.length) throw new Error(json.errors.map((e) => e.message).join("; "));
   return json.data;

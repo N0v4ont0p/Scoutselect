@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEventMatches } from "@/lib/ftcscout";
-import { cacheGet, cacheSet, TTL_LIVE } from "@/lib/cache";
+import { getEventMatches, upstreamErrorMessage } from "@/lib/ftcscout";
+import { cacheGet, cacheGetStale, cacheSet, TTL_LIVE } from "@/lib/cache";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ season: string; code: string }> }) {
   const { season, code } = await params;
@@ -12,7 +12,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sea
     cacheSet(key, data, TTL_LIVE);
     return NextResponse.json(data);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error(`[api/event/${season}/${code}/matches] FTCScout error:`, e);
+    const stale = cacheGetStale(key);
+    if (stale) return NextResponse.json(stale, { headers: { "X-Cache": "stale" } });
+    return NextResponse.json({ error: upstreamErrorMessage(e) }, { status: 503 });
   }
 }

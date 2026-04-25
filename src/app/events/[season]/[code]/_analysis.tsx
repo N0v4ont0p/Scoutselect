@@ -142,7 +142,7 @@ export default function EventAnalysisContent() {
       if (teamsData?.rankings) setRankings(teamsData.rankings);
       if (evData?.name) setEventName(evData.name);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : "Failed to load event data. Please try again.");
     }
     setLoading(false);
   }, [season, code]);

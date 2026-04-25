@@ -114,7 +114,7 @@ export default function Home() {
         setResults(Array.isArray(data) ? data : []);
         setOpen(true);
         setTeamActiveIdx(-1);
-      } catch (e) { setResults([]); setSearchError(String(e)); setOpen(true); }
+      } catch (e) { setResults([]); setSearchError(e instanceof Error ? e.message : String(e)); setOpen(true); }
       setLoading(false);
     }, 300);
     return () => { if (teamDebounceRef.current) clearTimeout(teamDebounceRef.current); };
