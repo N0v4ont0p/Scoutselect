@@ -13,7 +13,6 @@ export default function Navbar() {
   const NAV_LINKS = [
     { href: "/teams", label: t.nav.teams },
     { href: "/events", label: t.nav.events },
-    { href: "/seasons", label: t.nav.seasons },
     { href: "/compare", label: t.nav.compare },
     { href: "/methodology", label: t.nav.methodology },
   ];
