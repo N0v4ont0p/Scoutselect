@@ -214,7 +214,12 @@ export default function ComparePage() {
                     <span className="font-mono font-semibold">{formatScore(stat.value)}</span>
                   </div>
                   <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}
-                    role="progressbar" aria-valuenow={Math.round(stat.value)} aria-valuemin={0} aria-valuemax={Math.round(stat.max)} aria-label={stat.label}>
+                    role="progressbar"
+                    aria-valuenow={Math.round(stat.value)}
+                    aria-valuemin={0}
+                    aria-valuemax={Math.round(stat.max)}
+                    aria-label={stat.label}
+                    aria-valuetext={`${formatScore(stat.value)} out of ${formatScore(stat.max)}`}>
                     <div className="h-2 rounded-full transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.min(100, (stat.value / stat.max) * 100)}%`,
