@@ -135,6 +135,10 @@ export default function Home() {
   const teamDropdownActive = open && (results.length > 0 || !!searchError);
   const eventDropdownActive = eventSearchOpen && eventResults.length > 0;
 
+  function handleCtaNavigate() {
+    if (ctaTeam.trim()) router.push(`/events?team=${ctaTeam.trim()}`);
+  }
+
   const ACTIVE_BORDER = "1px solid rgba(99,102,241,0.5)";
   const DEFAULT_BORDER = "1px solid var(--border)";
   const DROPDOWN_STYLE: React.CSSProperties = {
@@ -189,10 +193,10 @@ export default function Home() {
               placeholder={t.home.ctaPlaceholder}
               value={ctaTeam}
               onChange={(e) => setCtaTeam(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && ctaTeam.trim()) router.push(`/events?team=${ctaTeam.trim()}`); }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCtaNavigate(); }}
             />
             <button
-              onClick={() => { if (ctaTeam.trim()) router.push(`/events?team=${ctaTeam.trim()}`); }}
+              onClick={handleCtaNavigate}
               disabled={!ctaTeam.trim()}
               className="px-5 py-3 rounded-xl font-bold text-sm transition-all duration-200 disabled:opacity-40 hover:brightness-110 whitespace-nowrap"
               style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 4px 16px rgba(99,102,241,0.35)" }}>
