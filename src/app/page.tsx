@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import type React from "react";
 import Link from "next/link";
@@ -33,12 +34,14 @@ interface EventSummary {
 
 export default function Home() {
   const { t } = useI18n();
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TeamResult[]>([]);
   const [searchError, setSearchError] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [ctaTeam, setCtaTeam] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live / upcoming events
@@ -132,6 +135,10 @@ export default function Home() {
   const teamDropdownActive = open && (results.length > 0 || !!searchError);
   const eventDropdownActive = eventSearchOpen && eventResults.length > 0;
 
+  function handleCtaNavigate() {
+    if (ctaTeam.trim()) router.push(`/events?team=${ctaTeam.trim()}`);
+  }
+
   const ACTIVE_BORDER = "1px solid rgba(99,102,241,0.5)";
   const DEFAULT_BORDER = "1px solid var(--border)";
   const DROPDOWN_STYLE: React.CSSProperties = {
@@ -171,6 +178,32 @@ export default function Home() {
           style={{ color: "var(--text-muted)" }}>
           {t.home.subheadline}
         </p>
+
+        {/* ── CTA: Get Started ── */}
+        <div className={`max-w-sm mx-auto mb-6 animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>
+          <label className="block text-xs font-semibold uppercase tracking-widest mb-2 text-center"
+            style={{ color: "var(--text-muted)" }}>
+            {t.home.ctaLabel}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              className="flex-1 px-4 py-3 rounded-xl text-sm font-mono"
+              style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
+              placeholder={t.home.ctaPlaceholder}
+              value={ctaTeam}
+              onChange={(e) => setCtaTeam(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCtaNavigate(); }}
+            />
+            <button
+              onClick={handleCtaNavigate}
+              disabled={!ctaTeam.trim()}
+              className="px-5 py-3 rounded-xl font-bold text-sm transition-all duration-200 disabled:opacity-40 hover:brightness-110 whitespace-nowrap"
+              style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 4px 16px rgba(99,102,241,0.35)" }}>
+              {t.home.ctaBtn}
+            </button>
+          </div>
+        </div>
 
         {/* Pills */}
         <div className={`flex items-center justify-center gap-2 mb-5 flex-wrap animate-slide-up stagger-2 ${mounted ? "" : "opacity-0"}`}>

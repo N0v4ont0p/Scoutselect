@@ -6,6 +6,7 @@ import { useI18n } from "@/context/LanguageContext";
 interface Section {
   title: string;
   tag?: string;
+  summary?: string;
   body: string;
   code?: string;
 }
@@ -54,6 +55,7 @@ else                           → "picked"`,
   {
     title: "Offensive Power Rating (OPR)",
     tag: "OPR",
+    summary: "OPR estimates each team's individual scoring contribution by solving equations across all their matches. Teams that consistently play with stronger alliances are discounted appropriately.",
     body: `OPR attributes each team an individual contribution to alliance scores by solving the over-determined linear system A·x = b via Gaussian elimination with partial pivoting. Each row of A is one alliance in one match; each column is a team (1 if playing, 0 otherwise). b is the alliance's score. Solved independently for total, auto, teleop, and endgame to produce per-phase OPRs.`,
     code: `A[alliance_i][team_j] = 1  if team j played for alliance i
 b[alliance_i]           = alliance score in that match
@@ -66,6 +68,7 @@ Result x[j] = team j's OPR contribution`,
   {
     title: "Bayesian Shrinkage",
     tag: "Stats",
+    summary: "Teams with very few matches have unreliable stats. We blend their numbers toward the event average to avoid overconfidence on small samples.",
     body: `Teams with fewer than 5 qualification matches produce unreliable OPR estimates. A Bayesian shrinkage weight pulls those estimates toward the event median, reducing over-confidence on tiny samples. Teams with ≥5 matches use their full observed OPR.`,
     code: `α = min(matchCount, 5) / 5
 smoothed = α × observed_OPR + (1 − α) × event_median`,
@@ -75,6 +78,7 @@ smoothed = α × observed_OPR + (1 − α) × event_median`,
   {
     title: "Consistency & Reliability",
     tag: "Metrics",
+    summary: "Consistency measures how predictable a team's scores are match-to-match. Reliability combines consistency with match volume — a consistent team with only 2 matches is still penalised.",
     body: `Consistency measures score stability using the inter-quartile range (IQR) of a team's match scores — a tighter IQR means more predictable performance. Reliability is a composite weighting consistency (60%) and match volume (40%), so teams with few matches are penalised even if their scores look consistent.`,
     code: `consistency = 100 − (IQR / 400) × 100
 reliability = 0.6 × consistency
@@ -85,6 +89,7 @@ reliability = 0.6 × consistency
   {
     title: "Synergy Score",
     tag: "Synergy",
+    summary: "Teams that dominate different phases (e.g. one auto-heavy, one endgame-heavy) complement each other. Teams that both dominate the same phase overlap and partially cancel out.",
     body: `Each team is encoded as a normalised role fingerprint in (auto, teleop, endgame) space. Two teams with different dominant phases are complementary (high Euclidean distance → positive bonus). Two teams that both dominate the same phase create an overlap penalty. The net synergy score is added to projected alliance strength.`,
     code: `fingerprint = (avgAuto/avgTotal, avgDc/avgTotal, avgEndgame/avgTotal)
 
@@ -99,6 +104,7 @@ synergy = complementarity − overlapPenalty`,
   {
     title: "Snake-Draft Simulation",
     tag: "Draft",
+    summary: "We simulate how other captains will pick before your turn, so your pick rankings are adjusted for who will actually still be available.",
     body: `To model which teams will still be available when you pick, ScoutSelect simulates a greedy snake draft. Each captain, in rank order, picks the available team that maximises their projected 2-team alliance strength. The draft reverses direction for pick 2 (round 2 picks in reverse rank order). This produces a draft-adjusted availability flag for each candidate pick.`,
     code: `Round 1 (pick 1): captain 1 → captain 2 → … → captain N
 Round 2 (pick 2): captain N → captain N-1 → … → captain 1
@@ -111,6 +117,7 @@ Output: available_r1[team], available_r2[team]`,
   {
     title: "Alliance Strength",
     tag: "Strength",
+    summary: "A projected alliance's total strength is the sum of team OPRs plus a bonus for complementary role coverage.",
     body: `Alliance strength combines the sum of team OPRs with a pairwise synergy bonus averaged across all team pairs in the alliance. The synergy bonus is scaled by 0.4 to prevent it from overwhelming the raw OPR signal.`,
     code: `totalOPR = sum of OPRs for all teams in alliance
 
@@ -125,6 +132,7 @@ allianceStrength = totalOPR + (bonus / pairsCount) × 0.4`,
   {
     title: "Picklist Generation & Modes",
     tag: "Picks",
+    summary: "For each candidate first pick, we also simulate the best second pick remaining, giving you a true 3-team projected strength rather than just pairwise scores.",
     body: `For a captain, ScoutSelect evaluates every available team as a potential pick 1, then for each simulates the best pick 2 from the remaining pool, producing a projected 3-team alliance strength. Results are ranked by that projected strength and annotated with availability from the draft simulation. Four ranking modes shift the weighting:
 • Safe — prioritises reliability and consistency.
 • Balanced — equal weight on OPR, synergy, and reliability.
@@ -140,6 +148,7 @@ Draft simulation annotates: "Available R1", "Likely gone", etc.`,
   {
     title: "Pitch Strategy Engine",
     tag: "Pitch",
+    summary: "We calculate how much you improve each captain's alliance compared to their next-best alternative. The captains where your delta is highest are the ones most likely to want you.",
     body: `For teams in the picked pool, ScoutSelect ranks every captain by how much you improve their alliance. The improvement delta is the difference in projected alliance strength with and without you as pick 1. Captains where you provide the largest delta are most likely to want you. Talking points and red flags are generated automatically from your metrics.`,
     code: `delta(captain) = allianceStrength(captain, you)
                − allianceStrength(captain, their_best_alternative)
@@ -156,6 +165,7 @@ redFlags generated from:      matchCount < 5, consistency < 50,
   {
     title: "Monte Carlo Win Probability",
     tag: "Monte Carlo",
+    summary: "We simulate 2,000 matches against each projected opponent, sampling each team's score randomly around their average. The win probability is the fraction of simulations you win.",
     body: `Win probabilities are computed by running 2,000 simulated matches against each projected opponent alliance. In each simulation, every team's contribution is sampled from a normal distribution N(μ, σ) using the Box-Muller transform (μ = OPR, σ = score standard deviation). Alliance scores are summed and the winner tallied. The final win probability is the fraction of simulations won.`,
     code: `for each simulation (n = 2,000):
   for each team t in alliance:
@@ -208,6 +218,7 @@ const SECTIONS_ZH: Section[] = [
   {
     title: "进攻效率评分 (OPR)",
     tag: "OPR",
+    summary: "OPR 通过对所有比赛中的方程组求解来估算每支队伍的个人得分贡献。与实力较强联盟频繁搭档的队伍会被适当折扣。",
     body: `OPR 通过求解超定线性方程组 A·x = b（带部分主元的高斯消元法）为每支队伍分配个人得分贡献。A 的每行对应一场比赛中的某个联盟侧；每列对应一支队伍（参赛为1，否则为0）。b 为该联盟在该场比赛的得分。分别对总分、自动段、手控段和末段独立求解。`,
     code: `A[联盟_i][队伍_j] = 1  若队伍 j 为联盟 i 上场
 b[联盟_i]           = 该场比赛联盟得分
@@ -218,6 +229,7 @@ b[联盟_i]           = 该场比赛联盟得分
   {
     title: "贝叶斯收缩",
     tag: "统计",
+    summary: "比赛场次极少的队伍数据可靠性低。我们将其数值向赛事平均值靠拢，避免对小样本过度自信。",
     body: `资格赛场次少于 5 场的队伍 OPR 估计值不可靠。贝叶斯收缩权重将这些估计值拉向赛事中位数，减少小样本的过度自信。场次 ≥5 的队伍使用完整观测 OPR。`,
     code: `α = min(场次数, 5) / 5
 平滑值 = α × 观测OPR + (1 − α) × 赛事中位数`,
@@ -225,6 +237,7 @@ b[联盟_i]           = 该场比赛联盟得分
   {
     title: "稳定性与可靠性",
     tag: "指标",
+    summary: "稳定性衡量队伍场次间得分的可预测性。可靠性将稳定性与比赛场次结合——即使是稳定的队伍，若只有2场比赛，也会受到惩罚。",
     body: `稳定性使用队伍比赛得分的四分位距（IQR）衡量得分稳定性——IQR 越小，表现越可预测。可靠性综合稳定性（60%）和比赛场次（40%），场次少的队伍即使得分看似稳定也会受到惩罚。`,
     code: `稳定性 = 100 − (IQR / 400) × 100
 可靠性 = 0.6 × 稳定性
@@ -233,6 +246,7 @@ b[联盟_i]           = 该场比赛联盟得分
   {
     title: "协同得分",
     tag: "协同",
+    summary: "主导不同阶段的队伍（如一支自动段强、一支末段强）互为互补。两支都主导同一阶段的队伍则会产生重叠并部分相互抵消。",
     body: `每支队伍在（自动段、手控段、末段）空间中被编码为归一化角色指纹。主导阶段不同的两支队伍具有互补性（欧氏距离大 → 正加成）。两支队伍同时主导同一阶段则产生重叠惩罚。净协同得分加入预测联盟实力。`,
     code: `指纹 = (avgAuto/avgTotal, avgDc/avgTotal, avgEndgame/avgTotal)
 
@@ -245,6 +259,7 @@ dist     = 两指纹间的欧氏距离
   {
     title: "蛇形选拔模拟",
     tag: "选拔",
+    summary: "我们模拟其他队长在您之前的选人过程，使您的选人排名根据实际可用队伍进行调整。",
     body: `为模拟轮到您选人时哪些队伍仍可用，ScoutSelect 模拟一次贪心蛇形选拔。每位队长按排名顺序贪心选择使其预测双人联盟实力最大化的可用队伍。第二轮以反向排名顺序进行，为每个候选选人生成可用性标注。`,
     code: `第1轮（选1）：队长1 → 队长2 → … → 队长N
 第2轮（选2）：队长N → 队长N-1 → … → 队长1
@@ -255,6 +270,7 @@ dist     = 两指纹间的欧氏距离
   {
     title: "联盟实力",
     tag: "实力",
+    summary: "预测联盟的总实力是各队伍 OPR 之和加上互补角色覆盖的加成。",
     body: `联盟实力将联盟中所有队伍 OPR 之和与联盟内所有队伍对的平均协同加成相结合。协同加成按 0.4 缩放，防止其淹没原始 OPR 信号。`,
     code: `totalOPR = 联盟内所有队伍 OPR 之和
 
@@ -267,6 +283,7 @@ dist     = 两指纹间的欧氏距离
   {
     title: "选人列表生成与模式",
     tag: "选人",
+    summary: "对于每个候选第1选人，我们还会模拟剩余最佳第2选人，给出真实的三人预测实力而非仅两两得分。",
     body: `对于队长，ScoutSelect 评估每支可用队伍作为第1选人的潜力，并为每支队伍从剩余池中模拟最佳第2选人，生成预测三人联盟实力。结果按该预测实力排序，并附有选拔模拟的可用性标注。四种排名模式调整权重：
 • 稳健 — 优先考虑可靠性和稳定性。
 • 均衡 — OPR、协同和可靠性等权。
@@ -280,6 +297,7 @@ dist     = 两指纹间的欧氏距离
   {
     title: "推销策略引擎",
     tag: "推销",
+    summary: "我们计算您相较于各队长次优备选方案的提升幅度。您对哪位队长的提升最大，他们就最有可能想要您。",
     body: `对于处于被选池中的队伍，ScoutSelect 按您对每位队长联盟提升幅度从大到小排名。提升增量为有您和没有您时预测联盟实力之差。您提供最大增量的队长最有可能想要您。系统根据您的指标自动生成推销要点和风险提示。`,
     code: `delta(队长) = allianceStrength(队长, 我)
             − allianceStrength(队长, 其最佳替代)
@@ -294,6 +312,7 @@ dist     = 两指纹间的欧氏距离
   {
     title: "蒙特卡洛胜率预测",
     tag: "蒙特卡洛",
+    summary: "我们对每支预测对手模拟2,000场比赛，在其平均值附近随机采样每支队伍的得分。您赢得模拟的比例即为胜率。",
     body: `通过对每支预测对手联盟运行 2,000 次模拟比赛来计算胜率。在每次模拟中，每支队伍的贡献从正态分布 N(μ, σ) 中采样（使用 Box-Muller 变换，μ = OPR，σ = 得分标准差）。对联盟得分求和后统计胜者，最终胜率为胜利模拟次数的比例。`,
     code: `对每次模拟 (n = 2,000):
   对联盟中每支队伍 t:
@@ -350,8 +369,11 @@ export default function MethodologyPage() {
       </Link>
 
       <h1 className="text-3xl font-black mb-2 animate-slide-up">{t.methodology.title}</h1>
-      <p className="text-sm mb-8 animate-slide-up stagger-1" style={{ color: "var(--text-muted)" }}>
+      <p className="text-sm mb-3 animate-slide-up stagger-1" style={{ color: "var(--text-muted)" }}>
         {t.methodology.subtitle}
+      </p>
+      <p className="text-sm mb-8 animate-slide-up stagger-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+        {t.methodology.intro}
       </p>
 
       {sections.map((s, i) => {
@@ -369,13 +391,27 @@ export default function MethodologyPage() {
                 </span>
               )}
             </div>
-            <p className="text-sm mb-3 leading-relaxed whitespace-pre-line" style={{ color: "var(--text-muted)" }}>{s.body}</p>
-            {s.code && (
-              <pre className="text-xs p-3 rounded-xl overflow-x-auto font-mono"
-                style={{ background: "var(--surface-2)", color: "var(--accent)", border: "1px solid var(--border)" }}>
-                {s.code}
-              </pre>
+
+            {s.summary && (
+              <p className="text-sm mb-3 leading-relaxed" style={{ color: "var(--text)" }}>
+                {s.summary}
+              </p>
             )}
+
+            <details className="group">
+              <summary className="cursor-pointer text-xs font-semibold select-none mb-3 inline-flex items-center gap-1.5 transition-colors hover:opacity-80"
+                style={{ color: "var(--accent)" }}>
+                {t.methodology.detailsLabel}
+                <span className="group-open:rotate-90 transition-transform duration-200 inline-block">▶</span>
+              </summary>
+              <p className="text-sm mb-3 leading-relaxed whitespace-pre-line" style={{ color: "var(--text-muted)" }}>{s.body}</p>
+              {s.code && (
+                <pre className="text-xs p-3 rounded-xl overflow-x-auto font-mono"
+                  style={{ background: "var(--surface-2)", color: "var(--accent)", border: "1px solid var(--border)" }}>
+                  {s.code}
+                </pre>
+              )}
+            </details>
           </div>
         );
       })}

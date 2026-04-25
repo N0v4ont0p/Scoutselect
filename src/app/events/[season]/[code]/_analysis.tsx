@@ -486,9 +486,15 @@ function ScenarioArchetypeBar({
     ceiling: a.archetype_ceiling,
     safe: a.archetypeSafe,
   };
+  const archetypeTooltips: Record<CaptainArchetype, string> = {
+    balanced: a.archetypeTooltipBalanced,
+    auto_heavy: a.archetypeTooltipAutoHeavy,
+    ceiling: a.archetypeTooltipCeiling,
+    safe: a.archetypeTooltipSafe,
+  };
 
   return (
-    <div className="glass rounded-xl px-4 py-3 flex flex-wrap gap-4 items-center"
+    <div className="glass rounded-xl px-4 py-3 flex flex-wrap gap-4 items-start"
       style={{ border: "1px solid var(--border)" }}>
       {/* MC Scenario */}
       <div className="flex items-center gap-2">
@@ -509,20 +515,26 @@ function ScenarioArchetypeBar({
         </div>
       </div>
       {/* Archetype */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{a.archetypeLabel}</span>
-        <div className="flex gap-1 flex-wrap">
+      <div className="flex items-start gap-2">
+        <span className="text-xs mt-1.5" style={{ color: "var(--text-muted)" }}>{a.archetypeLabel}</span>
+        <div className="flex gap-2 flex-wrap">
           {archetypes.map((arc) => (
-            <button key={arc}
-              onClick={() => onArchetype(arc)}
-              className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors"
-              style={{
-                background: archetype === arc ? "rgba(139,92,246,0.25)" : "var(--surface-2)",
-                color: archetype === arc ? "var(--accent-2)" : "var(--text-muted)",
-                border: `1px solid ${archetype === arc ? "rgba(139,92,246,0.5)" : "var(--border)"}`,
-              }}>
-              {archetypeLabels[arc]}
-            </button>
+            <div key={arc} className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={() => onArchetype(arc)}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors"
+                style={{
+                  background: archetype === arc ? "rgba(139,92,246,0.25)" : "var(--surface-2)",
+                  color: archetype === arc ? "var(--accent-2)" : "var(--text-muted)",
+                  border: `1px solid ${archetype === arc ? "rgba(139,92,246,0.5)" : "var(--border)"}`,
+                }}>
+                {archetypeLabels[arc]}
+              </button>
+              <span className="text-[10px] text-center leading-tight max-w-[90px]"
+                style={{ color: "var(--text-muted)", opacity: 0.7 }}>
+                {archetypeTooltips[arc]}
+              </span>
+            </div>
           ))}
         </div>
       </div>
