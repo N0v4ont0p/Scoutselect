@@ -124,6 +124,8 @@ export const translations = {
       back: "Home",
       title: "Methodology",
       subtitle: "How ScoutSelect computes alliance scores, OPR, and win probabilities.",
+      intro: "ScoutSelect's calculations run entirely in your browser — no data leaves your device. Here's how they work. Plain English first, math if you want it.",
+      detailsLabel: "Technical details",
     },
     // Common
     common: {
@@ -454,6 +456,8 @@ export const translations = {
       back: "首页",
       title: "算法说明",
       subtitle: "ScoutSelect 如何计算联盟得分、OPR 及胜率。",
+      intro: "ScoutSelect 的所有计算均在您的浏览器中运行——数据不会离开您的设备。以下是其工作原理。先看通俗说明，数学公式可按需展开。",
+      detailsLabel: "技术详情",
     },
     // Common
     common: {
