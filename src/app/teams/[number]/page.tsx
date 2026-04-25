@@ -11,6 +11,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ num
   let team = null;
   let events: { season: number; code: string; name: string; city: string; stateProv: string; start: string; finished: boolean }[] = [];
   let upstreamUnavailable = false;
+  let upstreamMsg: string | undefined;
 
   try {
     [team, events] = await Promise.all([
@@ -20,13 +21,14 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ num
   } catch (err) {
     if (err instanceof FTCScoutError) {
       upstreamUnavailable = true;
+      upstreamMsg = upstreamErrorMessage(err);
       console.error(`[teams/${teamNum}] FTCScout error:`, err);
     }
     // Otherwise: team not found (GraphQL null) — upstreamUnavailable stays false
   }
 
   if (!team) {
-    return <TeamNotFound teamNum={teamNum} upstreamUnavailable={upstreamUnavailable} upstreamMessage={upstreamUnavailable ? upstreamErrorMessage(new FTCScoutError("upstream", "")) : undefined} />;
+    return <TeamNotFound teamNum={teamNum} upstreamUnavailable={upstreamUnavailable} upstreamMessage={upstreamMsg} />;
   }
 
   return (
