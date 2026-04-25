@@ -303,7 +303,7 @@ export const translations = {
       archetypeSafe: "Safe/Reliable",
       archetypeTooltipBalanced: "Equal weight on OPR, synergy, and reliability",
       archetypeTooltipAutoHeavy: "Prioritizes autonomous scoring output",
-      archetypeTooltipCeiling: "Maximises peak scoring potential",
+      archetypeTooltipCeiling: "Maximizes peak scoring potential",
       archetypeTooltipSafe: "Prioritizes consistent, reliable teams",
       sensitivityRobust: "✓ Robust pick",
       sensitivityFragile: "⚠ Sensitive to captain style",
