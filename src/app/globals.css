@@ -9,7 +9,7 @@
   --accent-2: #8b5cf6;
   --accent-glow: rgba(99,102,241,0.35);
   --text: #e2e8f0;
-  --text-muted: #64748b;
+  --text-muted: #94a3b8;
   --success: #22c55e;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -236,6 +236,36 @@ body {
   color: var(--text);
   border-color: var(--accent);
   background: rgba(99,102,241,0.08);
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-float,
+  .animate-pulse-glow,
+  .animate-gradient,
+  .gradient-text {
+    animation: none !important;
+  }
+
+  .stagger-1,
+  .stagger-2,
+  .stagger-3,
+  .stagger-4,
+  .stagger-5,
+  .stagger-6 {
+    opacity: 1 !important;
+    animation: none !important;
+  }
 }
 
 /* ── Print styles ───────────────────────────────────────────────────────────── */

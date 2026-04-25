@@ -1,14 +1,28 @@
 const GRAPHQL_ENDPOINT = "https://api.ftcscout.org/graphql";
+const GQL_TIMEOUT_MS = 10_000; // 10 s — avoids hanging forever during events
 
 // ---------- GraphQL helper ----------
 async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
-  const res = await fetch(GRAPHQL_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-    next: { revalidate: 0 },
-  });
-  if (!res.ok) throw new Error(`FTCScout GraphQL ${res.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GQL_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables }),
+      next: { revalidate: 0 },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if ((err as Error).name === "AbortError") {
+      throw new Error("FTCScout API timed out — please try again");
+    }
+    throw err;
+  }
+  clearTimeout(timer);
+  if (!res.ok) throw new Error(`FTCScout API unavailable (HTTP ${res.status})`);
   const json = (await res.json()) as { data: T; errors?: { message: string }[] };
   if (json.errors?.length) throw new Error(json.errors.map((e) => e.message).join("; "));
   return json.data;
