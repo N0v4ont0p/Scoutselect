@@ -14,6 +14,15 @@ export function cacheGet<T>(key: string): T | undefined {
   return entry.value;
 }
 
+/**
+ * Returns cached data even if it has expired — used as a stale fallback
+ * when the upstream API is unavailable (403, 429, 5xx, timeout).
+ */
+export function cacheGetStale<T>(key: string): T | undefined {
+  const entry = store.get(key) as CacheEntry<T> | undefined;
+  return entry?.value;
+}
+
 export function cacheSet<T>(key: string, value: T, ttl: number): void {
   store.set(key, { value, expires: Date.now() + ttl });
 }
